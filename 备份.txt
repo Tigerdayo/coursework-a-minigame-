@@ -1,0 +1,3243 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<stdio.h>
+#include<easyx.h>
+#include<stdlib.h>
+#include<string.h>
+#include<windows.h>
+#include<math.h>
+#include<time.h>
+#include<mmsystem.h> //包含多媒体设备接口头文件
+#pragma comment(lib,"winmm.lib")
+
+#define LENGTH 990//窗口宽度
+#define WIDTH 660//窗口高度
+
+//函数 - char字符串转化为TCHAR字符串↓
+void ctot(TCHAR* Tstr, char* str) {
+
+#ifdef UNICODE
+	MultiByteToWideChar(CP_ACP, 0, str, -1, Tstr, 20);
+#else
+	strcpy(Tstr, str);
+#endif
+}
+//函数 - 打印蓝条↓
+void PpPrint(int x, int y, int pp, int mpp, int length, int width)// 坐标x，坐标y，当前体力值，最大体力值,体力条长度，宽度
+{
+
+
+	setfillcolor(WHITE);
+	setbkmode(TRANSPARENT);
+	solidcircle(x, y, width / 2);
+	solidcircle(x + length + width * 5 / 2, y, width / 2);
+
+	POINT pts1[] = { {x,y + width / 2 + 1},{x + length + width * 5 / 2,y + width / 2 + 1},{x + length + width * 5 / 2,y - width / 2},{x,y - width / 2} };
+	solidpolygon(pts1, 4);
+
+	setfillcolor(RGB(50, 145, 235));
+	solidcircle(x, y, width / 3);
+	solidcircle(x + length, y, width / 3);
+
+	POINT pts2[] = { {x,y + width / 3 + 1},{x + length,y + width / 3 + 1},{x + length,y - width / 3},{x,y - width / 3} };
+
+	solidpolygon(pts2, 4);
+
+	if (pp < mpp)
+	{
+		setfillcolor(WHITE);
+		POINT pts3[] = { {x + length + width / 3 + 1,y - width / 3 },{x + length + width / 3 + 1,y + width / 3 + 1},{x - width / 3 + (length + width) * pp / mpp ,y + width / 3 + 1},{x - width / 3 + (length + width) * pp / mpp ,y - width / 3} };
+		solidpolygon(pts3, 4);
+	}
+
+	//打印体力值比
+	TCHAR s[20];
+	char s1[20], s2[10];
+	_itoa(pp, s1, 10);
+	_itoa(mpp, s2, 10);
+	strcat(s1, "/");
+	strcat(s1, s2);
+
+	ctot(s, s1);
+	settextcolor(BLUE);
+	LOGFONT f;
+	gettextstyle(&f);
+	f.lfHeight = width / 1.5;
+	_tcscpy(f.lfFaceName, _T("华文琥珀"));
+	f.lfQuality = ANTIALIASED_QUALITY;
+	settextstyle(&f);
+	outtextxy(x + length + width / 2.5, y - width / 4, s);
+}
+//函数 - 打印血条↓
+void HpPrint(int x, int y, int hp, int mhp, int length, int width)// 坐标x，坐标y，当前血量值，最大血量值，血条长度，宽度
+{
+
+
+	setfillcolor(WHITE);
+	setbkmode(TRANSPARENT);
+	solidcircle(x, y, width / 2);
+	solidcircle(x + length + width * 5 / 2, y, width / 2);
+
+	POINT pts1[] = { {x,y + width / 2 + 1},{x + length + width * 5 / 2,y + width / 2 + 1},{x + length + width * 5 / 2,y - width / 2},{x,y - width / 2} };
+	solidpolygon(pts1, 4);
+
+	setfillcolor(RGB(250 - 200 * hp / mhp, 20 + 230 * hp / mhp, 20));
+	solidcircle(x, y, width / 3);
+	solidcircle(x + length, y, width / 3);
+
+	POINT pts2[] = { {x,y + width / 3 + 1},{x + length,y + width / 3 + 1},{x + length,y - width / 3},{x,y - width / 3} };
+
+	solidpolygon(pts2, 4);
+
+	if (hp < mhp)
+	{
+		setfillcolor(WHITE);
+		POINT pts3[] = { {x + length + width / 3 + 1,y - width / 3 },{x + length + width / 3 + 1,y + width / 3 + 1},{x - width / 3 + (length + width) * hp / mhp ,y + width / 3 + 1},{x - width / 3 + (length + width) * hp / mhp ,y - width / 3} };
+		solidpolygon(pts3, 4);
+	}
+	//打印血量比
+	TCHAR s[20];
+	char s1[20], s2[10];
+	_itoa(hp, s1, 10);
+	_itoa(mhp, s2, 10);
+	strcat(s1, "/");
+	strcat(s1, s2);
+	ctot(s, s1);
+	settextcolor(RGB(250 - 200 * hp / mhp, 20 + 230 * hp / mhp, 20));
+	LOGFONT f;
+	gettextstyle(&f);
+	f.lfHeight = width / 1.5;
+	_tcscpy(f.lfFaceName, _T("华文琥珀"));
+	f.lfQuality = ANTIALIASED_QUALITY;
+	settextstyle(&f);
+	outtextxy(x + length + width / 2.5, y - width / 4, s);
+
+
+}
+
+//函数 - 打印png透明图片↓
+void draw(int x, int y, IMAGE* image, int pic_x = 0, int pic_y = 0, double AA = 1)
+{
+	// 变量初始化
+	DWORD* dst = GetImageBuffer();   // GetImageBuffer() 函数，用于获取绘图设备的显存指针， EasyX 自带
+	DWORD* draw = GetImageBuffer();
+	DWORD* src = GetImageBuffer(image);  // 获取 picture 的显存指针
+	int imageWidth = image->getwidth();  // 获取图片宽度
+	int imageHeight = image->getheight(); // 获取图片宽度
+	int dstX = 0;       // 在 绘图区域 显存里像素的角标
+	int srcX = 0;       // 在 image 显存里像素的角标
+	// 实现透明贴图 公式： Cp=αp*FP+(1-αp)*BP ， 贝叶斯定理来进行点颜色的概率计算
+	for (int iy = 0; iy < imageHeight; iy++)
+	{
+		for (int ix = 0; ix < imageWidth; ix++)
+		{
+			// 防止越界
+			if (ix + pic_x >= 0 && ix + pic_x < imageWidth && iy + pic_y >= 0 && iy + pic_y < imageHeight &&
+				ix + x >= 0 && ix + x < LENGTH && iy + y >= 0 && iy + y < WIDTH)
+			{
+				// 获取像素角标
+				int srcX = (ix + pic_x) + (iy + pic_y) * imageWidth;
+				dstX = (ix + x) + (iy + y) * LENGTH;
+
+				int sa = ((src[srcX] & 0xff000000) >> 24) * AA;   // 0xAArrggbb; AA 是透明度
+				int sr = ((src[srcX] & 0xff0000) >> 16);    // 获取 RGB 里的 R
+				int sg = ((src[srcX] & 0xff00) >> 8);     // G
+				int sb = src[srcX] & 0xff;        // B
+
+				// 设置对应的绘图区域像素信息
+				int dr = ((dst[dstX] & 0xff0000) >> 16);
+				int dg = ((dst[dstX] & 0xff00) >> 8);
+				int db = dst[dstX] & 0xff;
+				draw[dstX] = ((sr * sa / 255 + dr * (255 - sa) / 255) << 16)  //公式： Cp=αp*FP+(1-αp)*BP  ； αp=sa/255 , FP=sr , BP=dr
+					| ((sg * sa / 255 + dg * (255 - sa) / 255) << 8)         //αp=sa/255 , FP=sg , BP=dg
+					| (sb * sa / 255 + db * (255 - sa) / 255);              //αp=sa/255 , FP=sb , BP=db
+			}
+		}
+	}
+}
+
+
+typedef struct {
+	int num;//武器编号
+	int intensify;//强化等级
+	char name[15]; //武器名称
+	int atk;  //攻击力
+	int sp;  //耐力
+	int pp;//所需体力
+	float speed;//武器转速
+	float CD;//使用CD
+	IMAGE* p;  //贴图
+	TCHAR story[20];//武器描述
+	int money;//出售金币
+
+}weapon;//结构体 - 武器
+
+typedef struct {
+
+	int mhp;  //最大血量
+	int hp;  //当前血量
+	int hpreturn;//持续回血
+
+	IMAGE* pic1;  //站立贴图
+	IMAGE* pic2;  //跳跃贴图
+	IMAGE* sc;  //场景
+
+	weapon w1;  //一号武器
+	weapon w2;  //二号武器
+
+}character;//结构体 - 角色
+
+typedef struct {
+
+	TCHAR name[10];//角色名
+
+	character I;
+	IMAGE* pic1;//角色浏览图
+	IMAGE* pic2;
+	IMAGE* pic3;
+	int mpp;  //最大体力值
+	int pp;  //当前体力值
+	int ppreturn;//持续回体
+
+}player;//结构体 - 玩家 - 继承角色
+
+typedef struct {
+	TCHAR name[10];//敌人名
+	int x;//敌人x坐标
+	int y;//敌人y坐标
+	character enemy;
+	IMAGE* boss;//boss贴图
+	IMAGE* book;//图鉴用图
+	int speed;//速度，值越小速度越快
+	int money;//掉落金币数
+
+}opponent;//结构体 - 敌人 - 继承角色
+
+//结点结构体 - 投掷弹幕链表↓
+typedef struct Node {
+
+	weapon it;//结构体 - 武器
+	float x, y; //弹幕坐标
+	int xv, yv;//弹幕速度
+	float t;//时间-用于旋转贴图
+	struct Node* next;
+
+};
+
+//函数 - 创建头结点 - 投掷弹幕链表↓
+Node* creatList() {
+
+	Node* head = (Node*)malloc(sizeof(Node));
+	head->next = NULL;
+	return head;
+
+}
+
+//函数 - 尾插新结点 - 投掷弹幕链表↓
+Node* insertNode(Node* node, weapon it, float x, float y) {//武器，武器坐标
+
+	Node* newNode = (Node*)malloc(sizeof(Node));
+
+	newNode->it = it;
+	newNode->x = x;
+	newNode->y = y;
+	newNode->xv = 22;
+	newNode->yv = 15;
+	newNode->t = 0;
+	newNode->next = NULL;
+	node->next = newNode;
+
+	return newNode;
+}
+
+//函数 - 菜单界面↓
+int menu() {
+
+	float x = 0;//背景坐标
+	int file_is = 0, state = 0;//存档界面判断参数，声明界面判断参数
+	IMAGE bk, text, text_1, text_2, text_3, title, file, statement;
+	ExMessage mouse;//鼠标
+
+	//字体设置
+	LOGFONT f;
+	gettextstyle(&f);
+	_tcscpy(f.lfFaceName, _T("方正姚体"));
+	f.lfQuality = ANTIALIASED_QUALITY;//抗锯齿
+	f.lfHeight = 60;
+	settextstyle(&f);
+	setbkmode(TRANSPARENT);
+	setlinestyle(PS_SOLID, 3);
+	setfillcolor(WHITE);
+
+	//图片载入
+	loadimage(&bk, _T("../背景/菜单背景.png"));
+	loadimage(&text, _T("../背景/菜单贴图.png"));
+	loadimage(&text_1, _T("../背景/菜单贴图1.png"));
+	loadimage(&text_2, _T("../背景/菜单贴图2.png"));
+	loadimage(&text_3, _T("../背景/菜单贴图3.png"));
+	loadimage(&title, _T("../背景/标题.png"));
+	loadimage(&file, _T("../背景/存档页.png"));
+	loadimage(&statement, _T("../背景/声明.png"));
+
+	//音乐播放
+	mciSendString(L"open ../背景音乐/菜单.mp3 alias BGM", 0, 0, 0);
+	mciSendString(L"setaudio BGM volume to 140", 0, 0, 0);//调节音量大小
+	mciSendString(L"play BGM repeat", 0, 0, 0);
+
+	//循环区
+	while (1) {
+
+		BeginBatchDraw();
+		cleardevice();
+		peekmessage(&mouse, EM_MOUSE);
+		putimage(x, 0, &bk);
+		putimage(x + 1500, 0, &bk);
+		if (!file_is && !state) {
+			draw(70, 20, &title);
+			draw(266, 400, &text);
+		}
+		x -= 0.3;
+		if (x <= -1500)//背景坐标重置
+			x = 0;
+		peekmessage(&mouse, EM_MOUSE);
+
+		//按钮判定
+		if (!file_is && !state) {
+			if ((mouse.x > 265 && mouse.x < 725) && (mouse.y < 470 && mouse.y > 400)) //开始游戏
+			{
+				draw(266, 400, &text_1, 0, 0, 0.5);
+				if (mouse.lbutton) {
+					PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+					file_is = 1;
+				}
+			}
+			else if ((mouse.x > 265 && mouse.x < 725) && (mouse.y < 540 && mouse.y > 470))//退出游戏
+			{
+				draw(266, 480, &text_2, 0, 0, 0.8);
+				if (mouse.lbutton)
+					exit(0);
+			}
+			else if ((mouse.x > 265 && mouse.x < 725) && (mouse.y < 610 && mouse.y > 540))//相关声明
+			{
+				draw(266, 560, &text_3, 0, 0, 0.8);
+				if (mouse.lbutton) {
+					PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+					state = 1;
+					mouse.lbutton = NULL;
+					Sleep(400);
+				}
+			}
+		}
+
+		//存档页面
+		if (file_is) {
+
+			f.lfHeight = 60;
+			settextstyle(&f);
+
+			draw(195, 100, &file);
+			outtextxy(370, 120, _T("选 择 存 档"));
+			circle(325, 330, 40);
+			circle(495, 330, 40);
+			circle(665, 330, 40);
+			outtextxy(304, 295, _T("壹"));
+			outtextxy(470, 295, _T("贰"));
+			outtextxy(639, 295, _T("叁"));
+		//进入存档↓
+			if ((mouse.x > 304 && mouse.x < 364) && (mouse.y > 295 && mouse.y < 355)) {
+				solidcircle(325, 330, 10);
+				if (mouse.lbutton) {
+					mciSendString(L"close BGM", 0, 0, 0);
+					PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+					return 1;
+				}
+			}
+			else if ((mouse.x > 470 && mouse.x < 530) && (mouse.y > 295 && mouse.y < 355)) {
+				solidcircle(495, 330, 10);
+				if (mouse.lbutton) {
+					mciSendString(L"close BGM", 0, 0, 0);
+					PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+					return 2;
+				}
+			}
+			else if ((mouse.x > 639 && mouse.x < 699) && (mouse.y > 295 && mouse.y < 355)) {
+				solidcircle(665, 330, 10);
+				if (mouse.lbutton) {
+					mciSendString(L"close BGM", 0, 0, 0);
+					PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+					return 3;
+				}
+			}
+
+			if (mouse.lbutton && ((mouse.x > 795 || mouse.x < 195) || (mouse.y < 100 || mouse.y > 500))) {//退出当前界面
+				file_is = 0;
+				mouse.lbutton == NULL;
+				Sleep(200);
+			}
+		}
+
+		//声明页面
+		if (state) {
+
+			f.lfHeight = 50;
+			settextstyle(&f);
+			setfillcolor(WHITE);
+			draw(0, 0, &statement,0,0,0.4);
+			outtextxy(60, 40, _T("素材声明："));	
+			outtextxy(60, 230, _T("制作人员："));
+			outtextxy(60, 320, _T("指导老师："));
+			outtextxy(60, 410, _T("特别鸣谢："));
+			f.lfHeight = 40;
+			settextstyle(&f);
+			outtextxy(260, 240, _T("包徐航"));
+			outtextxy(260, 330, _T("贺国平"));
+			outtextxy(260, 420, _T(" D216 全员"));
+			f.lfHeight = 30;
+			settextstyle(&f);
+			outtextxy(60, 100, _T("所有背景音乐来自《泰拉瑞亚》。"));
+			outtextxy(60, 140, _T("玩法创意部分参考《武器投掷RPG2》。"));
+			outtextxy(60, 180, _T("除原创素材以外, 其余图片均来源网络, 特此感谢所有原素材作者。"));
+
+			if (mouse.lbutton) {//退出当前界面
+				state = 0;
+				mouse.lbutton = NULL;
+				Sleep(200);
+			}
+		}
+
+
+
+		Sleep(1);
+		EndBatchDraw();
+	}
+}
+
+//------------------------函数声明↓----------------------------------
+int fight(player I, opponent rival, IMAGE bk, weapon handbag[]);//对战界面函数 - 返回掉落金币数
+void item(int file_num, weapon handbook[]);//主界面函数
+void save(int file_num, int act, weapon w1, weapon w2, weapon handbag[], int money, int level_num, int points[]);//存档函数
+void strengthen(weapon& it);//武器强化函数
+
+//主函数↓
+int main() {
+
+	initgraph(LENGTH, WIDTH);//创建窗口
+
+	//设置鼠标样式↓
+	HCURSOR hcur = LoadCursorFromFile(TEXT("../光标/剑.ani"));
+	HWND hwnd = GetHWnd();
+	SetClassLong(hwnd, GCL_HCURSOR, (long)hcur);
+
+
+	//------------------------------------武器图鉴载入↓--------------------------------
+	IMAGE picture[50];//武器贴图数组
+	weapon handbook[50];//武器图鉴数组
+	//武器参数：武器编号,强化等级,武器名，攻击力，耐久值，所需体力，武器转速，使用CD，贴图，武器描述，出售金币
+	loadimage(&picture[0], _T("../武器贴图/短剑.png"), 60, 60);
+	handbook[0] = { 0,0,"短剑", 2,4,2,6,1.3,&picture[0],_T("“冒险故事由此开启。”"),5 };
+
+	loadimage(&picture[1], _T("../武器贴图/长剑.png"), 60, 60);
+	handbook[1] = { 1,0,"长剑", 4,7,4,10,2.6,&picture[1],_T("“这是由你开启的故事。”"),5 };
+
+	loadimage(&picture[2], _T("../武器贴图/木棍.png"), 60, 60);
+	handbook[2] = { 2,0,"木棍", 3,4,3,9,0.5,&picture[2],_T("“随处可见的木棍。”"),6 };
+
+	loadimage(&picture[3], _T("../武器贴图/石斧.png"), 60, 60);
+	handbook[3] = { 3,0,"石斧",10,7,6,12,3.2,&picture[3],_T("“相当原始的工具。”"),6 };
+
+	loadimage(&picture[4], _T("../武器贴图/苦无.png"), 60, 60);
+	handbook[4] = { 4,0,"苦无",4,5,4,1,1.4,&picture[4],_T("“聚集你的查克拉。”"),8 };
+
+	loadimage(&picture[5], _T("../武器贴图/木剑.png"), 60, 60);
+	handbook[5] = { 5,0,"木剑",8,6,6,10,2.2,&picture[5],_T("“训练用具。”"),8 };
+
+	loadimage(&picture[6], _T("../武器贴图/银箭.png"), 60, 60);
+	handbook[6] = { 6,0,"银箭",6,5,5,1,0.8,&picture[6],_T("“传说来自爱神丘比特的银箭。”"),10 };
+
+	loadimage(&picture[7], _T("../武器贴图/镰刀.png"), 60, 60);
+	handbook[7] = { 7,0,"镰刀",10,6,8,13,2.4,&picture[7],_T("“工农武装割据。”"),10 };
+
+	loadimage(&picture[8], _T("../武器贴图/双刃剑.png"), 60, 60);
+	handbook[8] = { 8,0,"双刃剑",12,7,9,12,2.4,&picture[8],_T("“任何事物都有两面性。”"),12 };
+
+	loadimage(&picture[9], _T("../武器贴图/手里剑.png"), 60, 60);
+	handbook[9] = { 9,0,"手里剑",9,6,8,15,1.4,&picture[9],_T("“释放你的查克拉。”"),12 };
+
+	loadimage(&picture[10], _T("../武器贴图/大剑.png"), 60, 60);
+	handbook[10] = { 10,0,"大剑",14,8,12,10,2.7,&picture[10],_T("“狂战士最亲密的伙伴。”"),14 };
+
+	loadimage(&picture[11], _T("../武器贴图/绿帽.png"), 60, 60);
+	handbook[11] = { 11,0,"绿帽",10,7,10,7,1.6,&picture[11],_T("“效果拔群的精神伤害。”"),14 };
+
+	loadimage(&picture[12], _T("../武器贴图/刺剑.png"), 60, 60);
+	handbook[12] = { 12,0,"刺剑",12,7,10,1,2.0,&picture[12],_T("“锐利的剑，锐利的眼。”"),16 };
+
+	loadimage(&picture[13], _T("../武器贴图/靶子.png"), 60, 60);
+	handbook[13] = { 13,0,"靶子",16,9,13,11,2.8,&picture[13],_T("“测测对手的准头。”"),16 };
+
+	loadimage(&picture[14], _T("../武器贴图/钻石剑.png"), 60, 60);
+	handbook[14] = { 14,0,"钻石剑",14,8,12,7,1.8,&picture[14],_T("“两颗钻石，一根木棍。”"),18 };
+
+	loadimage(&picture[15], _T("../武器贴图/金箭.png"), 60, 60);
+	handbook[15] = { 15,0,"金箭",12,7,9,1,0.8,&picture[15],_T("“传说来自爱神丘比特的金箭。”"),18 };
+
+	loadimage(&picture[16], _T("../武器贴图/法棍面包.png"), 60, 60);
+	handbook[16] = { 16,0,"法棍面包",18,10,16,11,2.6,&picture[16],_T("“真的不会给对方回血吗？”"),22 };
+
+	loadimage(&picture[17], _T("../武器贴图/契约胜利之剑.png"), 60, 60);
+	handbook[17] = { 17,0,"契约胜利剑",26,12,20,9,2.9,&picture[17],_T("“Excalibur ! ! !”"),26 };
+
+	loadimage(&picture[18], _T("../武器贴图/爆竹.png"), 60, 60);
+	handbook[18] = { 18,0,"爆竹",16,10,14,11,1.6,&picture[18],_T("“爆竹声中敌岁除。”"),24 };
+
+	loadimage(&picture[19], _T("../武器贴图/针.png"), 60, 60);
+	handbook[19] = { 19,0,"针",1,1,1,1,0.1,&picture[19],_T("“散落吧，千本樱。”"),24 };
+
+	loadimage(&picture[20], _T("../武器贴图/爱神之箭.png"), 60, 60);
+	handbook[20] = { 20,0,"爱神之箭",15,8,12,1,0.7,&picture[20],_T("“真正的传说之箭。”"),28 };
+
+	loadimage(&picture[21], _T("../武器贴图/手枪.png"), 60, 60);
+	handbook[21] = { 21,0,"手枪",17,13,16,11,1.6,&picture[21],_T("“精密的铁疙瘩。”"),28 };
+
+	loadimage(&picture[22], _T("../武器贴图/金桂之剑.png"), 60, 60);
+	handbook[22] = { 22,0,"金桂之剑",22,11,16,1,2.0,&picture[22],_T("“由金桂之树化成。”"),32 };
+
+	loadimage(&picture[23], _T("../武器贴图/船锚.png"), 60, 60);
+	handbook[23] = { 23,0,"船锚",46,20,45,11,4.3, &picture[23],_T("“用于停泊你的浮空船。”"), 32 };
+
+	loadimage(&picture[24], _T("../武器贴图/朗基努斯枪.png"), 70, 70);
+	handbook[24] = { 24,0,"朗基努斯枪",40,14,30,1,3,&picture[24],_T("“一支曾刺穿耶稣的枪。”"),36 };
+
+	loadimage(&picture[25], _T("../武器贴图/新华字典.png"), 60, 60);
+	handbook[25] = { 25,0,"新华字典",32,20,30,12,2.6,&picture[25],_T("“知识的力量十磅重。”"),36 };
+
+	loadimage(&picture[26], _T("../武器贴图/蓝蔷薇之剑.png"), 60, 60);
+	handbook[26] = { 26,0,"蓝蔷薇之剑",26,12,19,10,2.4,&picture[26],_T("“由冰之蔷薇塑成。”"),40 };
+
+	loadimage(&picture[27], _T("../武器贴图/铲子.png"), 60, 60);
+	handbook[27] = { 27,0,"铲子",18,16,15,18,1.6,&picture[27],_T("“对植物特攻。”"),40 };
+
+	loadimage(&picture[28], _T("../武器贴图/水滴.png"), 60, 60);
+	handbook[28] = { 28,0,"水滴",40,99,50,1,3.0,&picture[28],_T("“某种强相互作用力材料制作。”"),45 };
+
+	loadimage(&picture[29], _T("../武器贴图/夜空之剑.png"), 60, 60);
+	handbook[29] = { 29,0,"夜空之剑",30,14,22,10,2.6,&picture[29],_T("“由恶魔树枝制成。”"),45 };
+
+	loadimage(&picture[30], _T("../武器贴图/程序错误.png"), 60, 60);
+	handbook[30] = { 30,0,"程序错误",80,20,60,0,4,&picture[30],_T("“将其向上抛出。”"),50 };
+
+	loadimage(&picture[31], _T("../武器贴图/十字架.png"), 60, 60);
+	handbook[31] = { 31,0,"十字架",20,15,15,15,1.7,&picture[31],_T("“爱与救赎。”"),50 };
+
+	loadimage(&picture[32], _T("../武器贴图/末影珍珠.png"), 60, 60);
+	handbook[32] = { 32,0,"末影珍珠",16,9,13,0,0.9,&picture[32],_T("“瘦长鬼影——”"),55 };
+
+	loadimage(&picture[33], _T("../武器贴图/时之沙漏.png"), 60, 60);
+	handbook[33] = { 33,0,"时之沙漏",36,18,28,14,2.5,&picture[33],_T("“抵达过去与未来。”"),55 };
+
+	loadimage(&picture[34], _T("../武器贴图/燃火大剑.png"), 60, 60);
+	handbook[34] = { 34,0,"燃火大剑",40,18,28,15,2.6,&picture[34],_T("“传承初始之火的薪王们...”"),60 };
+
+	loadimage(&picture[35], _T("../武器贴图/干将.png"), 60, 60);
+	handbook[35] = { 35,0,"干将",24,12,20,10,1.2,&picture[35],_T("“鹤翼无欠，技压泰山。”"),100 };
+
+	loadimage(&picture[36], _T("../武器贴图/莫邪.png"), 60, 60);
+	handbook[36] = { 36,0,"莫邪",36,18,30,10,1.8,&picture[36],_T("“气贯黄河，威名震天。”"),100 };
+	//------------------------------------武器图鉴载入↑--------------------------------
+
+	//开屏提示↓
+	IMAGE voice;
+	loadimage(&voice, _T("../背景/音量提示.png"));
+	putimage(0, 0, &voice);
+	Sleep(2000);
+
+	//循环区↓
+	while (1) {
+
+		int num = menu();//菜单，返回存档位
+
+		item(num, handbook);//游戏主界面，传入存档位与武器图鉴
+
+	}
+}
+
+//对战函数↓
+int fight(player me, opponent rival, IMAGE bk, weapon handbag[]) {
+	//-------------------------------------预加载区↓-------------------------------------------------------------------
+	IMAGE shadow, defeat, victory, diamond, beatback, name_d;//影子，失败页，胜利页,装备框,反击图标,敌我名称框
+	IMAGE button1, button2, button3, button4;//按钮1-4
+	IMAGE se1[7], se2[25];//特效数组
+
+	loadimage(&shadow, _T("../角色&场景贴图/影子.png"));
+	loadimage(&defeat, _T("../角色&场景贴图/失败.png"));
+	loadimage(&victory, _T("../角色&场景贴图/胜利.png"));
+	loadimage(&diamond, _T("../背景/装备框.png"), 48, 48);
+	loadimage(&beatback, _T("../角色&场景贴图/绝地反击.png"));
+	loadimage(&name_d, _T("../角色&场景贴图/名字框.png"));
+
+	loadimage(&button1, _T("../角色&场景贴图/按钮1.png"));
+	loadimage(&button2, _T("../角色&场景贴图/按钮2.png"));
+	loadimage(&button3, _T("../角色&场景贴图/按钮3.png"));
+	loadimage(&button4, _T("../角色&场景贴图/按钮4.png"));
+
+	loadimage(&se1[0], _T("../角色&场景贴图/特效1.png"));
+	loadimage(&se1[1], _T("../角色&场景贴图/特效2.png"));
+	loadimage(&se1[2], _T("../角色&场景贴图/特效3.png"));
+	loadimage(&se1[3], _T("../角色&场景贴图/特效4.png"));
+	loadimage(&se1[4], _T("../角色&场景贴图/特效5.png"));
+	loadimage(&se1[5], _T("../角色&场景贴图/特效6.png"));
+	loadimage(&se1[6], _T("../角色&场景贴图/特效7.png"));
+
+	loadimage(&se2[0], _T("../角色&场景贴图/特效A1.png"));
+	loadimage(&se2[1], _T("../角色&场景贴图/特效A2.png"));
+	loadimage(&se2[2], _T("../角色&场景贴图/特效A3.png"));
+	loadimage(&se2[3], _T("../角色&场景贴图/特效A4.png"));
+	loadimage(&se2[4], _T("../角色&场景贴图/特效A5.png"));
+	loadimage(&se2[5], _T("../角色&场景贴图/特效A6.png"));
+	loadimage(&se2[6], _T("../角色&场景贴图/特效A7.png"));
+	loadimage(&se2[7], _T("../角色&场景贴图/特效A8.png"));
+	loadimage(&se2[8], _T("../角色&场景贴图/特效A9.png"));
+	loadimage(&se2[9], _T("../角色&场景贴图/特效A10.png"));
+	loadimage(&se2[10], _T("../角色&场景贴图/特效A11.png"));
+
+	Node* head1 = creatList(), * head2 = creatList(), * head3 = creatList();//玩家三条武器轨迹的链表创建
+	Node* node1 = head1, * dest1, * node2 = head2, * dest2, * node3 = head3, * dest3;
+	Node* now1 = head1, * now2 = head2, * now3 = head3;
+
+	Node* e_head1 = creatList(), * e_head2 = creatList(), * e_head3 = creatList();//敌人三条武器轨迹的链表创建
+	Node* e_node1 = e_head1, * e_dest1, * e_node2 = e_head2, * e_dest2, * e_node3 = e_head3, * e_dest3;
+	Node* e_now1 = e_head1, * e_now2 = e_head2, * e_now3 = e_head3;
+
+	ExMessage test;//鼠标&键盘操作接收
+	int g = 1, zhen = 0, e_zhen = 0, temp = 0;// 重力加速度参数，玩家跳跃帧参数，敌人跳跃帧参数，弹幕耐久中间值,
+	int zhen1 = 13, zhen2 = 13, zhen3 = 21, zhen4 = 21, zhen5 = 21;//特效帧1，特效帧2, 特效帧3，特效帧4, 特效帧5
+	int x1 = 0, y1 = 0, x2 = 0, y2 = 0, x3 = 0, y3 = 0;//特效坐标
+	IMAGE ph;//武器旋转用值
+	int Ix = 700, Iy = 210;//玩家坐标
+	char s1[10], s2[10], s3[10], s4[10];
+	TCHAR t1[10], t2[10], t3[10], t4[10];
+	_itoa(me.I.w1.atk, s1, 10);//转换 武器攻击力 以打印-int to char
+	_itoa(me.I.w2.atk, s2, 10);
+	_itoa(me.I.w1.pp, s3, 10);//转换 武器体耗 以打印-int to char
+	_itoa(me.I.w2.pp, s4, 10);
+	ctot(t1, s1);//转换 武器攻击力 以打印-char to TCHAR
+	ctot(t2, s2);
+	ctot(t3, s3);//转换 武器体耗 以打印-char to TCHAR
+	ctot(t4, s4);
+
+	LOGFONT f;
+	gettextstyle(&f);						// 获取当前字体设置
+	_tcscpy(f.lfFaceName, _T("华文琥珀")); // 设置字体为“华文琥珀”		
+	f.lfQuality = ANTIALIASED_QUALITY;		// 设置输出效果为抗锯齿  
+
+	mciSendString(L"close BGM", 0, 0, 0);//关闭主界面音乐
+	//随机播放战斗音乐↓
+	srand(time(NULL));
+	switch (rand() % 5) {
+	case 0:
+		mciSendString(L"open ../背景音乐/战斗1.mp3 alias BGM", 0, 0, 0);
+		break;
+	case 1:
+		mciSendString(L"open ../背景音乐/战斗2.mp3 alias BGM", 0, 0, 0);
+		break;
+	case 2:
+		mciSendString(L"open ../背景音乐/战斗3.mp3 alias BGM", 0, 0, 0);
+		break;
+	case 3:
+		mciSendString(L"open ../背景音乐/战斗4.mp3 alias BGM", 0, 0, 0);
+		break;
+	case 4:
+		mciSendString(L"open ../背景音乐/战斗5.mp3 alias BGM", 0, 0, 0);
+		break;
+	}
+	//mciSendString(L"setaudio BGM volume to 240", 0, 0, 0);//调节音量大小
+	mciSendString(L"play BGM repeat", 0, 0, 0);
+
+	float t = 0, hp1 = 0, hp2 = 0, pp1 = 0;//旋转背景图,回血回蓝暂储值
+	float CD1 = 0, CD2 = 0, eCD = 2, name_CD = 8, boss_CD = 1;//武器1CD,武器2CD,敌人武器CD,显示名字CD
+
+	int num, hp = me.I.hp, pp = me.pp, e_hp = rival.enemy.hp;
+	for (num = 0; handbag[num].p != NULL; num++);
+
+	if (rival.boss != NULL) {//boss关卡出场音效
+		mciSendString(L"open ../音效/警告.wav alias BOSS", 0, 0, 0);
+		mciSendString(L"play BOSS", 0, 0, 0);
+		PlaySound(_T("../音效/警告.wav"), NULL, SND_ASYNC);
+	}
+	//-----------------战斗动画循环区↓-----------------------------------------------------
+	while (1) {
+		t += 2;
+		BeginBatchDraw();
+		cleardevice();
+		putimage(-100 + 40 * cos(t * 3.14 / 180), -100 + 40 * sin(t * 3.14 / 180), &bk);//旋转背景图
+		draw(Ix, Iy, me.I.sc);//玩家载具
+		draw(rival.x - 50, rival.y, rival.enemy.sc);//敌人载具
+		draw(Ix + 100, Iy + 190, &shadow, 0, 0, 0.3);//玩家影子
+		if (rival.x == 30 && rival.y == 210)
+			draw(130, 400, &shadow, 0, 0, 0.3);//敌人影子
+
+		peekmessage(&test);//多次读取鼠标&键盘操作，增强灵敏度
+
+		if (name_CD >= 2.4) {
+			draw(0, 0, &name_d, 0, 0, name_CD / 8 - 0.3);//名称框
+			f.lfHeight = 25;
+			_tcscpy(f.lfFaceName, _T("华文中宋"));
+			settextcolor(WHITE);
+			settextstyle(&f);
+			outtextxy(30, 160, rival.name);
+			outtextxy(880, 160, me.name);
+			name_CD -= 0.03;
+		}
+
+
+		for (int i = 0; i < 4; i++) {//打印武器按钮
+			if (i == 0)
+				draw(130 + i * 185, 550, &button1);//轨道1
+			else if (i == 3)
+				draw(130 + i * 185, 550, &button3);//轨道3
+			else
+				draw(130 + i * 185, 550, &button2);//轨道2
+
+			if (CD1 > 0 && i < 2)//武器CD动画
+				draw(130 + i * 185, 550 + 100 * (me.I.w1.CD - CD1) / me.I.w1.CD, &button4, 0, 100 * (me.I.w1.CD - CD1) / me.I.w1.CD);
+			if (CD2 > 0 && i >= 2)
+				draw(130 + i * 185, 550 + 100 * (me.I.w2.CD - CD2) / me.I.w2.CD, &button4, 0, 100 * (me.I.w2.CD - CD2) / me.I.w2.CD);
+		}
+
+		peekmessage(&test);//多次读取鼠标&键盘操作，增强灵敏度
+
+		draw(150, 570, me.I.w1.p);//打印按钮上武器贴图
+		draw(335, 570, me.I.w1.p);
+		draw(520, 570, me.I.w2.p);
+		draw(705, 570, me.I.w2.p);
+
+		_tcscpy(f.lfFaceName, _T("华文琥珀"));
+		f.lfHeight = 45;	// 设置字体高度为 45
+		settextstyle(&f);
+		settextcolor(RED);
+		outtextxy(205, 575, t1);//打印按钮上武器攻击力
+		outtextxy(390, 575, t1);
+		outtextxy(575, 575, t2);
+		outtextxy(760, 575, t2);
+
+		f.lfHeight = 35;  // 设置字体高度为 35
+		settextstyle(&f);
+		settextcolor(RGB(50, 145, 235));
+		outtextxy(250, 595, t3);//打印按钮上武器体耗
+		outtextxy(435, 595, t3);
+		outtextxy(620, 595, t4);
+		outtextxy(805, 595, t4);
+
+		if (zhen == 0) { //玩家角色贴图
+			draw(Ix + 100, Iy + 170, me.I.pic1);//静止状态帧
+		}
+		else {//跳跃状态帧
+			if (zhen > 5)
+				draw(Ix + 100, Iy + 170 - zhen * 6, me.I.pic2);
+			if (zhen <= 5)
+				draw(Ix + 100, Iy + 150 + zhen * 6, me.I.pic2);
+			zhen--;
+		}
+
+		if (e_zhen == 0) { //敌人角色贴图
+			draw(rival.x + 100, rival.y + 170, rival.enemy.pic1);//静止状态帧
+		}
+		else {
+			if (e_zhen > 5)//跳跃状态帧
+				draw(rival.x + 100, rival.y + 170 - e_zhen * 6, rival.enemy.pic2);
+			if (e_zhen <= 5)
+				draw(rival.x + 100, rival.y + 150 + e_zhen * 6, rival.enemy.pic2);
+			e_zhen--;
+		}
+
+		if (zhen1 < 13) {//敌人受击特效
+			if (zhen1 < 7)
+				draw(110, 350, &se1[zhen1]);
+			else
+				draw(110, 350, &se1[-zhen1 + 12]);
+			zhen1++;
+		}
+		if (zhen2 < 13) {//玩家受击特效
+			if (zhen2 < 7)
+				draw(Ix + 80, Iy + 140, &se1[zhen2]);
+			else
+				draw(Ix + 80, Iy + 140, &se1[-zhen2 + 12]);
+			zhen2++;
+		}
+
+		if (zhen3 < 21) {//武器抵消特效
+			if (zhen3 < 11)
+				draw(x1, y1, &se2[zhen3]);
+			else
+				draw(x1, y1, &se2[-zhen3 + 20]);
+			zhen3++;
+		}
+
+		if (zhen4 < 21) {//武器抵消特效
+			if (zhen4 < 11)
+				draw(x2, y2, &se2[zhen4]);
+			else
+				draw(x2, y2, &se2[-zhen4 + 20]);
+			zhen4++;
+		}
+
+		if (zhen5 < 21) {//武器抵消特效
+			if (zhen5 < 11)
+				draw(x3, y3, &se2[zhen5]);
+			else
+				draw(x3, y3, &se2[-zhen5 + 20]);
+			zhen5++;
+		}
+
+		peekmessage(&test);//多次读取鼠标&键盘操作，增强灵敏度
+
+		//攻击按钮判定
+		if ((test.vkcode == 0x51 || (test.lbutton == 1 && (test.x > 150 && test.x < 315) && (test.y > 550 && test.y < 650))) && CD1 <= 0 && me.pp >= me.I.w1.pp) {
+			PlaySound(_T("../音效/投掷1.wav"), NULL, SND_ASYNC);
+			node1 = insertNode(node1, me.I.w1, Ix + 60, Iy + 150);
+			zhen = 4;
+			me.pp -= me.I.w1.pp;
+			CD1 = me.I.w1.CD;
+			if (test.vkcode == 0x51)
+				test.vkcode = NULL;
+		}
+
+		if ((test.vkcode == 0x57 || (test.lbutton == 1 && (test.x > 335 && test.x < 500) && (test.y > 550 && test.y < 650))) && CD1 <= 0 && me.pp >= me.I.w1.pp) {
+			PlaySound(_T("../音效/投掷1.wav"), NULL, SND_ASYNC);
+			node2 = insertNode(node2, me.I.w1, Ix + 60, Iy + 100);
+			zhen = 10;
+			me.pp -= me.I.w1.pp;
+			CD1 = me.I.w1.CD;
+			if (test.vkcode == 0x57)
+				test.vkcode = NULL;
+		}
+
+		if ((test.vkcode == 0x45 || (test.lbutton == 1 && (test.x > 520 && test.x < 685) && (test.y > 550 && test.y < 650))) && CD2 <= 0 && me.pp >= me.I.w2.pp) {
+			PlaySound(_T("../音效/投掷2.wav"), NULL, SND_ASYNC);
+			node2 = insertNode(node2, me.I.w2, Ix + 60, Iy + 100);
+
+			zhen = 10;
+			me.pp -= me.I.w2.pp;
+			CD2 = me.I.w2.CD;
+			if (test.vkcode == 0x45)
+				test.vkcode = NULL;
+		}
+
+		if ((test.vkcode == 0x52 || (test.lbutton == 1 && (test.x > 705 && test.x < 870) && (test.y > 550 && test.y < 650))) && CD2 <= 0 && me.pp >= me.I.w2.pp) {
+			PlaySound(_T("../音效/投掷2.wav"), NULL, SND_ASYNC);
+			node3 = insertNode(node3, me.I.w2, Ix + 60, Iy + 100);
+
+			zhen = 10;
+			me.pp -= me.I.w2.pp;
+			CD2 = me.I.w2.CD;
+			if (test.vkcode == 0x52)
+				test.vkcode = NULL;
+		}
+
+		if (eCD <= 0)//敌人攻击载入
+			switch (rand() % rival.speed) {
+
+			case 0:
+				eCD = rival.enemy.w1.CD;
+				e_node1 = insertNode(e_node1, rival.enemy.w1, 80, 360);
+				e_zhen = 4;
+				break;
+
+			case 1:
+				eCD = rival.enemy.w1.CD;
+				e_node2 = insertNode(e_node2, rival.enemy.w1, 80, 310);
+				e_zhen = 10;
+				break;
+
+			case 2:
+				eCD = rival.enemy.w2.CD;
+				e_node2 = insertNode(e_node2, rival.enemy.w2, 80, 310);
+				e_zhen = 10;
+				break;
+
+			case 3:
+				eCD = rival.enemy.w2.CD;
+				e_node3 = insertNode(e_node3, rival.enemy.w2, 80, 310);
+				e_zhen = 10;
+				break;
+			}
+
+		peekmessage(&test);//多次读取鼠标&键盘操作，增强灵敏度
+
+		now1 = head1;//玩家武器轨迹与击中判定
+		while (now1 != NULL) {
+
+			if (now1->x > 120 && now1 != head1) {
+				if (now1->it.speed <= 10)
+					rotateimage(&ph, now1->it.p, 0.8, BLACK, true, false);
+				else {
+					rotateimage(&ph, now1->it.p, 0.8 + t / 5, BLACK, true, false);
+					now1->t += me.I.w1.speed;
+				}
+				draw(now1->x, now1->y, &ph);
+				now1->x -= now1->xv;
+
+			}
+
+			if (now1->x <= 120 && now1 != head1) {
+				if (rival.enemy.hp >= now1->it.atk)
+					rival.enemy.hp -= now1->it.atk;
+				else
+					rival.enemy.hp = 0;
+
+				PlaySound(_T("../音效/击中.wav"), NULL, SND_ASYNC);
+				zhen1 = 0;
+				dest1 = now1;
+				if (now1->next != NULL) {
+
+					head1->next = now1->next;
+					now1 = now1->next;
+					dest1->next = NULL;
+					free(dest1);
+				}
+
+				else {
+					head1->next = NULL;
+					node1 = head1;
+					break;
+				}
+			}
+			else {
+				now1 = now1->next;
+			}
+		}
+
+		now2 = head2;
+		while (now2 != NULL) {
+
+			if (now2->x > 120 && now2 != head2) {
+				rotateimage(&ph, now2->it.p, now2->t / 22, BLACK, true, false);
+				draw(now2->x, now2->y, &ph);
+				now2->yv -= g;
+				now2->x -= now2->xv;
+				now2->y -= now2->yv;
+				if (now2->it.num == me.I.w1.num)
+					now2->t += me.I.w1.speed;
+				else if (now2->it.num == me.I.w2.num)
+					now2->t += me.I.w2.speed;
+
+			}
+
+			if (now2->x <= 120 && now2 != head2) {
+				if (rival.enemy.hp >= now2->it.atk)
+					rival.enemy.hp -= now2->it.atk;
+				else
+					rival.enemy.hp = 0;
+				zhen1 = 0;
+				PlaySound(_T("../音效/击中.wav"), NULL, SND_ASYNC);
+				dest2 = now2;
+				if (now2->next != NULL) {
+
+					head2->next = now2->next;
+					now2 = now2->next;
+					dest2->next = NULL;
+					free(dest2);
+				}
+
+				else {
+					head2->next = NULL;
+					node2 = head2;
+					break;
+				}
+			}
+			else {
+				now2 = now2->next;
+			}
+		}
+
+		now3 = head3;
+		while (now3 != NULL) {
+
+			if (now3->x > 100 && now3 != head3) {
+				rotateimage(&ph, now3->it.p, now3->t / 30, BLACK, true, false);
+				draw(now3->x, now3->y, &ph);
+				now3->yv -= g;
+				now3->x -= (now3->xv - 6);
+				now3->y -= (now3->yv + 6);
+				now3->t += me.I.w2.speed;
+			}
+
+			if (now3->x <= 100 && now3 != head3) {
+				if (rival.enemy.hp >= now3->it.atk)
+					rival.enemy.hp -= now3->it.atk;
+				else
+					rival.enemy.hp = 0;
+				zhen1 = 0;
+				PlaySound(_T("../音效/击中.wav"), NULL, SND_ASYNC);
+				dest3 = now3;
+				if (now3->next != NULL) {
+
+					head3->next = now3->next;
+					now3 = now3->next;
+					dest3->next = NULL;
+					free(dest3);
+				}
+
+				else {
+					head3->next = NULL;
+					node3 = head3;
+					break;
+				}
+			}
+			else {
+				now3 = now3->next;
+			}
+		}
+
+		peekmessage(&test);//多次读取鼠标&键盘操作，增强灵敏度
+
+		e_now1 = e_head1;//敌人武器轨迹与击中判定
+		while (e_now1 != NULL) {
+
+			if (e_now1->x < 800 && e_now1 != e_head1) {
+				if (e_now1->it.speed <= 10)
+					rotateimage(&ph, e_now1->it.p, -2.35, BLACK, true, false);
+				else {
+					rotateimage(&ph, e_now1->it.p, -2.35 - t / 5, BLACK, true, false);
+					e_now1->t += rival.enemy.w1.speed;
+				}
+				draw(e_now1->x, e_now1->y, &ph);
+				e_now1->x += e_now1->xv;
+
+			}
+
+			if (e_now1->x >= 800 && e_now1 != e_head1) {
+				if (me.I.hp >= e_now1->it.atk)
+					me.I.hp -= e_now1->it.atk;
+				else
+					me.I.hp = 0;
+				zhen2 = 0;
+				PlaySound(_T("../音效/击中.wav"), NULL, SND_ASYNC);
+				e_dest1 = e_now1;
+				if (e_now1->next != NULL) {
+
+					e_head1->next = e_now1->next;
+					e_now1 = e_now1->next;
+					e_dest1->next = NULL;
+					free(e_dest1);
+				}
+
+				else {
+					e_head1->next = NULL;
+					e_node1 = e_head1;
+					break;
+				}
+			}
+			else {
+				e_now1 = e_now1->next;
+			}
+		}
+
+		e_now2 = e_head2;
+		while (e_now2 != NULL) {
+
+			if (e_now2->x < 800 && e_now2 != e_head2) {
+				rotateimage(&ph, e_now2->it.p, -e_now2->t / 22 - 1.6, BLACK, true, false);
+				draw(e_now2->x, e_now2->y, &ph);
+				e_now2->yv -= g;
+				e_now2->x += e_now2->xv;
+				e_now2->y -= e_now2->yv;
+				if (e_now2->it.num == rival.enemy.w1.num)
+					e_now2->t += rival.enemy.w1.speed;
+				else if (e_now2->it.num == rival.enemy.w2.num)
+					e_now2->t += rival.enemy.w2.speed;
+
+			}
+
+			if (e_now2->x >= 800 && e_now2 != e_head2) {
+				if (me.I.hp >= e_now2->it.atk)
+					me.I.hp -= e_now2->it.atk;//扣除生命值
+				else
+					me.I.hp = 0;
+				zhen2 = 0;
+				PlaySound(_T("../音效/击中.wav"), NULL, SND_ASYNC);
+				e_dest2 = e_now2;
+				if (e_now2->next != NULL) {
+
+					e_head2->next = e_now2->next;
+					e_now2 = e_now2->next;
+					e_dest2->next = NULL;
+					free(e_dest2);
+				}
+
+				else {
+					e_head2->next = NULL;
+					e_node2 = e_head2;
+					break;
+				}
+			}
+			else {
+				e_now2 = e_now2->next;
+			}
+		}
+
+		e_now3 = e_head3;
+		while (e_now3 != NULL) {
+
+			if (e_now3->x < 800 && e_now3 != e_head3) {
+				rotateimage(&ph, e_now3->it.p, -1.2 - e_now3->t / 20, BLACK, true, false);
+				draw(e_now3->x, e_now3->y, &ph);
+				e_now3->yv -= g;
+				e_now3->x += (e_now3->xv - 6);
+				e_now3->y -= (e_now3->yv + 7);
+				e_now3->t += rival.enemy.w2.speed;
+			}
+
+			if (e_now3->x >= 800 && e_now3 != e_head3) {
+				if (me.I.hp >= e_now3->it.atk)
+					me.I.hp -= e_now3->it.atk;//扣除生命值
+				else
+					me.I.hp = 0;
+				zhen2 = 0;
+				PlaySound(_T("../音效/击中.wav"), NULL, SND_ASYNC);
+				e_dest3 = e_now3;
+				if (e_now3->next != NULL) {
+
+					e_head3->next = e_now3->next;
+					e_now3 = e_now3->next;
+					e_dest3->next = NULL;
+					free(e_dest3);
+				}
+
+				else {
+					e_head3->next = NULL;
+					e_node3 = e_head3;
+					break;
+				}
+			}
+			else {
+				e_now3 = e_now3->next;
+			}
+		}
+
+		peekmessage(&test);//多次读取鼠标&键盘操作，增强灵敏度
+
+	//同轨道武器抵消
+		if (head1->next != NULL && e_head1->next != NULL)
+			if (head1->next->x <= e_head1->next->x) {
+				x1 = head1->next->x;//储存特效坐标
+				y1 = head1->next->y;
+				zhen3 = 0;
+
+				PlaySound(_T("../音效/相撞.wav"), NULL, SND_ASYNC);//播放音效
+				temp = head1->next->it.sp;
+				head1->next->it.sp -= e_head1->next->it.sp;
+				e_head1->next->it.sp -= temp;
+				if (e_head1->next->it.sp <= 0) {
+					e_dest1 = e_head1->next;
+					if (e_head1->next->next != NULL) {
+
+						e_head1->next = e_head1->next->next;
+						e_dest1->next = NULL;
+						free(e_dest1);
+					}
+
+					else {
+						e_head1->next = NULL;
+						e_node1 = e_head1;
+					}
+				}
+
+				if (head1->next->it.sp <= 0) {
+					dest1 = head1->next;
+					if (head1->next->next != NULL) {
+
+						head1->next = head1->next->next;
+						dest1->next = NULL;
+						free(dest1);
+					}
+
+					else {
+						head1->next = NULL;
+						node1 = head1;
+					}
+
+				}
+			}
+
+		if (head2->next != NULL && e_head2->next != NULL)
+			if (head2->next->x <= e_head2->next->x) {
+				x2 = head2->next->x;//储存特效坐标
+				y2 = head2->next->y;
+				zhen4 = 0;
+				PlaySound(_T("../音效/相撞.wav"), NULL, SND_ASYNC);
+				temp = head2->next->it.sp;
+				head2->next->it.sp -= e_head2->next->it.sp;
+				e_head2->next->it.sp -= temp;
+
+				if (e_head2->next->it.sp <= 0) {
+					e_dest2 = e_head2->next;
+					if (e_head2->next->next != NULL) {
+
+						e_head2->next = e_head2->next->next;
+						e_dest2->next = NULL;
+						free(e_dest2);
+					}
+
+					else {
+						e_head2->next = NULL;
+						e_node2 = e_head2;
+					}
+				}
+
+				if (head2->next->it.sp <= 0) {
+					dest2 = head2->next;
+					if (head2->next->next != NULL) {
+
+						head2->next = head2->next->next;
+						dest2->next = NULL;
+						free(dest2);
+					}
+
+					else {
+						head2->next = NULL;
+						node2 = head2;
+					}
+
+				}
+			}
+
+		if (head3->next != NULL && e_head3->next != NULL)
+			if (head3->next->x <= e_head3->next->x) {
+				x3 = head3->next->x;//储存特效坐标
+				y3 = head3->next->y;
+				zhen5 = 0;
+				PlaySound(_T("../音效/相撞.wav"), NULL, SND_ASYNC);
+				temp = head3->next->it.sp;
+				head3->next->it.sp -= e_head3->next->it.sp;
+				e_head3->next->it.sp -= temp;
+
+				if (e_head3->next->it.sp <= 0) {
+					e_dest3 = e_head3->next;
+					if (e_head3->next->next != NULL) {
+
+						e_head3->next = e_head3->next->next;
+						e_dest3->next = NULL;
+						free(e_dest3);
+					}
+
+					else {
+						e_head3->next = NULL;
+						e_node3 = e_head3;
+					}
+				}
+
+				if (head3->next->it.sp <= 0) {
+					dest3 = head3->next;
+					if (head3->next->next != NULL) {
+
+						head3->next = head3->next->next;
+						dest3->next = NULL;
+						free(dest3);
+					}
+
+					else {
+						head3->next = NULL;
+						node3 = head3;
+					}
+
+				}
+			}
+
+		hp1 += (float)me.I.hpreturn * 30 / 1000;//回血预载
+		hp2 += (float)rival.enemy.hpreturn * 30 / 1000;
+		pp1 += (float)me.ppreturn * 30 / 1000;//回体预载
+
+		if (hp1 >= 1 && me.I.hp < me.I.mhp && me.I.hp > 0) {
+			if (me.I.hp <= me.I.mhp * 0.3) {//血量低于3成进入 绝地反击 状态
+				me.I.hp += 2;
+				hp += 2;
+			}
+			else {
+				me.I.hp++;
+				hp++;
+			}
+			hp1 = 0;
+		}
+
+		if (hp2 >= 1 && rival.enemy.hp < rival.enemy.mhp && rival.enemy.hp > 0) {
+			rival.enemy.hp++;
+			e_hp++;
+			hp2 = 0;
+		}
+
+		if (pp1 >= 1 && me.pp < me.mpp) {
+			if (me.I.hp <= me.I.mhp * 0.3 && me.pp < me.mpp - 1) {//血量低于3成进入 绝地反击 状态
+				me.pp += 2;
+				pp += 2;
+			}
+			else {
+				me.pp++;
+				pp++;
+			}
+			pp1 = 0;
+		}
+
+		if (hp > me.I.hp)
+			hp--;
+		if (pp > me.pp)
+			pp--;
+		if (e_hp > rival.enemy.hp)
+			e_hp--;
+
+		HpPrint(630, 40, hp, me.I.mhp, 230, 40);//打印玩家血条
+		PpPrint(630, 90, pp, me.mpp, 230, 30);//打印玩家体力条
+		HpPrint(30, 40, e_hp, rival.enemy.mhp, 250, 40);//打印敌人血条
+		if (me.I.hp <= me.I.mhp * 0.3)
+			draw(565, 22, &beatback);
+
+		if (e_hp <= 0) {//敌人血量归零，胜利
+			mciSendString(L"close BGM", 0, 0, 0);
+			PlaySound(_T("../音效/胜利.wav"), NULL, SND_ASYNC);
+			int money = rand() % 5 + rival.money;//金币数在 敌人金币数 + 5 范围内波动
+			char str[10];
+			TCHAR tstr[10];
+			draw(0, 0, &victory);
+
+			_itoa(money, str, 10);
+			ctot(tstr, str);
+			f.lfHeight = 30;
+			settextcolor(BLACK);
+			_tcscpy(f.lfFaceName, _T("华文新魏"));
+			settextstyle(&f);
+			outtextxy(480, 450, tstr);
+
+			if (num < 20)//判断背包容量，已满则无掉落
+				if (rand() % 100 < 50) {//随机掉落武器 - 50%概率掉落敌人一号武器
+					draw(410, 380, &diamond);
+					draw(408, 376, rival.enemy.w1.p);
+					handbag[num] = rival.enemy.w1;
+				}
+				else if (rand() % 100 < 50) {//25%概率掉落敌人二号武器
+					draw(410, 380, &diamond);
+					draw(407, 375, rival.enemy.w2.p);
+					handbag[num] = rival.enemy.w2;
+				}
+				else {//25%概率掉落敌人一、二号武器
+					draw(410, 380, &diamond);
+					draw(407, 375, rival.enemy.w1.p);
+					draw(470, 380, &diamond);
+					draw(467, 375, rival.enemy.w2.p);
+					handbag[num] = rival.enemy.w1;
+					handbag[num + 1] = rival.enemy.w2;
+				}
+			EndBatchDraw();
+			Sleep(500);
+			while (1) {
+				test.lbutton = NULL;
+				peekmessage(&test, EM_MOUSE);//任意操作退回主界面
+
+				if (test.lbutton) {
+					mciSendString(L"open ../背景音乐/装备.mp3 alias BGM", 0, 0, 0);
+					mciSendString(L"setaudio BGM volume to 140", 0, 0, 0);//调节音量大小
+					mciSendString(L"play BGM repeat", 0, 0, 0);
+					return money;//返回金币数
+				}
+			}
+		}
+
+		if (hp <= 0) {//玩家血量归零，失败
+			mciSendString(L"close BGM", 0, 0, 0);
+			PlaySound(_T("../音效/失败.wav"), NULL, SND_ASYNC);
+			draw(0, 0, &defeat);
+			EndBatchDraw();
+			Sleep(500);
+			while (1) {
+				test.lbutton = NULL;
+				peekmessage(&test, EM_MOUSE);
+				if (test.lbutton) {
+					mciSendString(L"open ../背景音乐/装备.mp3 alias BGM", 0, 0, 0);
+					mciSendString(L"setaudio BGM volume to 140", 0, 0, 0);//调节音量大小
+					mciSendString(L"play BGM repeat", 0, 0, 0);
+					return 0;
+				}
+			}
+		}
+		CD1 -= 0.03;//CD改变，30/1000s每次循环
+		CD2 -= 0.03;
+		eCD -= 0.03;
+
+		if (rival.boss != NULL && boss_CD >= 0) {
+
+			setlinestyle(PS_SOLID, 5);
+			if (boss_CD > 0.7) {
+
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 400;
+				settextcolor(RED);
+				settextstyle(&f);
+				outtextxy((1 - boss_CD) * 1500 - 700, 120, rival.name);
+
+				line((1 - boss_CD) * 1500, 160, (1 - boss_CD) * 1500 - 900, 160);
+				line((1 - boss_CD) * 1500, 200, (1 - boss_CD) * 1500 - 900, 200);
+				draw((1 - boss_CD) * 1500 - 550, 30, rival.boss);
+				line((boss_CD - 1) * 1500 + 1900, 460, (boss_CD - 1) * 1500 + 1000, 460);
+				line((boss_CD - 1) * 1500 + 1900, 500, (boss_CD - 1) * 1500 + 1000, 500);
+
+			}
+			else if (boss_CD > 0.2) {
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 400;
+				settextcolor(RED);
+				settextstyle(&f);
+				outtextxy((0.7 - boss_CD) * 500 - 250, 120, rival.name);
+				line((0.7 - boss_CD) * 500 + 450, 160, (0.7 - boss_CD) * 500 - 450, 160);
+				line((0.7 - boss_CD) * 500 + 450, 200, (0.7 - boss_CD) * 500 - 450, 200);
+				draw((0.7 - boss_CD) * 500 - 100, 30, rival.boss);
+				line((boss_CD - 0.7) * 500 + 1450, 460, (boss_CD - 0.7) * 500 + 550, 460);
+				line((boss_CD - 0.7) * 500 + 1450, 500, (boss_CD - 0.7) * 500 + 550, 500);
+
+			}
+			else
+			{
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 400;
+				settextcolor(RED);
+				settextstyle(&f);
+				outtextxy((0.2 - boss_CD) * 4700 - 50, 120, rival.name);
+				line((0.2 - boss_CD) * 7000 + 650, 160, (0.2 - boss_CD) * 7000 - 250, 160);
+				line((0.2 - boss_CD) * 7000 + 650, 200, (0.2 - boss_CD) * 7000 - 250, 200);
+				draw((0.2 - boss_CD) * 7000 + 100, 30, rival.boss);
+				line((boss_CD - 0.2) * 7000 + 1250, 460, (boss_CD - 0.2) * 7000 + 350, 460);
+				line((boss_CD - 0.2) * 7000 + 1250, 500, (boss_CD - 0.2) * 7000 + 350, 500);
+
+			}
+
+			boss_CD -= 0.03;
+		}
+
+		Sleep(30);
+		EndBatchDraw();
+
+	}
+
+}
+
+//主界面函数↓
+void item(int file_num, weapon handbook[]) {
+	//--------------养成界面预加载区↓--------------------------------------------------
+	IMAGE bk1, bk2, bk3, bk4;//各界面边框
+	IMAGE shadow, state, point, diamond, eq_mes, eq_dre, pic_money, back;//大号影子，状态栏，切换大关箭头,装备框,装备属性,装备穿戴,金币图标,返回键
+	IMAGE set[10], picture[50];//关卡背景图数组
+	IMAGE level_1, level_2, level_3, level_4, level_5, level_6, level_black;//关卡贴图1-6,未解锁关卡
+	IMAGE set_d, actor[4], _shadow;//关卡名称底图,角色酒馆贴图,小号影子
+	IMAGE map, talk, paint1, paint1_1, paint2, paint3, talk_d1, talk_d2, talk_d3, drink_d, drink_num, drink_p[4], forge_d, change_d;//酒馆所用贴图
+	IMAGE book1, book2, book_d;//图鉴界面窗口贴图
+
+	int count = 1, judge = 0, t = 0, bk = 0;//各判断参数
+	float CD = 0;//装备界面人物动态参数
+	int i1 = 0, j1 = 0, number = -1, made_num = -1;//背包定位参数
+	int buy = 0, drink = 0, forge = 0, make = 0, exchange = 0, change = 0, ac = 0;//酒馆各界面判定数
+	int book_s = 0;//图鉴定位参数
+
+	char str[30];//转化数值使用
+	TCHAR tstr[30];//接收数据并向屏幕输出使用
+
+	ExMessage mouse;//创建鼠标
+
+	//战斗板块贴图↓
+	loadimage(&bk1, _T("../背景/关卡.png"));
+	loadimage(&level_1, _T("../背景/关卡图标1.png"));
+	loadimage(&level_2, _T("../背景/关卡图标2.png"));
+	loadimage(&level_3, _T("../背景/关卡图标3.png"));
+	loadimage(&level_4, _T("../背景/关卡图标4.png"));
+	loadimage(&level_5, _T("../背景/关卡图标5.png"));
+	loadimage(&level_6, _T("../背景/关卡图标6.png"));
+	loadimage(&level_black, _T("../背景/关卡未解锁.png"));
+	loadimage(&set[0], _T("../背景/Plain.png"));
+	loadimage(&set[1], _T("../背景/Sky1.png"));
+	loadimage(&set[2], _T("../背景/Island.png"));
+	loadimage(&set[3], _T("../背景/Sky2.png"));
+	loadimage(&set[4], _T("../背景/Dream.png"));
+	loadimage(&set_d, _T("../背景/选择.png"), 250, 70);
+
+	//装备板块贴图↓
+	loadimage(&bk2, _T("../背景/装备栏.png"));
+	loadimage(&shadow, _T("../角色&场景贴图/影子.png"), 125, 125);
+	loadimage(&state, _T("../背景/状态栏.png"));
+	loadimage(&point, _T("../背景/箭头.png"));
+	loadimage(&diamond, _T("../背景/装备框.png"));
+	loadimage(&eq_mes, _T("../背景/装备属性.png"));
+	loadimage(&eq_dre, _T("../背景/装备&出售.png"));
+
+	//酒馆板块贴图↓
+	loadimage(&bk3, _T("../背景/酒馆.png"));
+	loadimage(&map, _T("../背景/酒馆地图.png"));
+	loadimage(&talk, _T("../背景/对话框.png"));
+	loadimage(&paint1, _T("../背景/老板立绘.png"));
+	loadimage(&paint1_1, _T("../背景/老板立绘_手.png"));
+	loadimage(&paint2, _T("../背景/铁匠立绘.png"));
+	loadimage(&paint3, _T("../背景/收藏家立绘.png"));
+	loadimage(&talk_d1, _T("../背景/选择.png"));
+	loadimage(&talk_d2, _T("../背景/选择.png"), 56, 28);
+	loadimage(&talk_d3, _T("../背景/选择.png"), 140, 80);
+	loadimage(&drink_d, _T("../背景/饮品框.png"));
+	loadimage(&forge_d, _T("../背景/饮品框.png"), 840, 500);
+	loadimage(&change_d, _T("../背景/饮品框.png"), 700, 400);
+	loadimage(&drink_num, _T("../背景/饮品框-数量条.png"));
+	loadimage(&drink_p[0], _T("../背景/朗姆酒.png"));
+	loadimage(&drink_p[1], _T("../背景/龙舌兰.png"));
+	loadimage(&drink_p[2], _T("../背景/血腥玛丽.png"));
+	loadimage(&drink_p[3], _T("../背景/魔女之泉.png"));
+	loadimage(&_shadow, _T("../角色&场景贴图/影子.png"), 45, 45);
+	loadimage(&actor[0], _T("../角色&场景贴图/蕾欧娜4.png"), 62, 64);
+	loadimage(&actor[1], _T("../角色&场景贴图/猫女4.png"), 62, 64);
+	loadimage(&actor[2], _T("../角色&场景贴图/斋藤一4.png"), 62, 64);
+
+	//图鉴板块贴图↓
+	loadimage(&bk4, _T("../背景/图鉴.png"));
+	loadimage(&book1, _T("../背景/图鉴栏1.png"));
+	loadimage(&book2, _T("../背景/图鉴栏2.png"));
+	loadimage(&book_d, _T("../背景/装备框.png"), 260, 72);
+
+	//通用贴图↓
+	loadimage(&pic_money, _T("../背景/金币.png"));
+	loadimage(&back, _T("../背景/返回按钮.png"));
+
+	//背景音乐播放↓
+	mciSendString(L"open ../背景音乐/装备.mp3 alias BGM", 0, 0, 0);
+	mciSendString(L"setaudio BGM volume to 180", 0, 0, 0);//调节音量大小
+	mciSendString(L"play BGM repeat", 0, 0, 0);
+
+	LOGFONT f;//字体设置
+	gettextstyle(&f);
+	_tcscpy(f.lfFaceName, _T("华文中宋"));//字体样式
+	f.lfQuality = ANTIALIASED_QUALITY;//抗锯齿
+	f.lfHeight = 25;
+	settextstyle(&f);
+	setbkmode(TRANSPARENT);//透明底
+
+	//武器大号贴图加载↓：用于图鉴及强化界面展示
+	loadimage(&picture[0], _T("../武器贴图/短剑.png"), 192, 192);
+	loadimage(&picture[1], _T("../武器贴图/长剑.png"), 192, 192);
+	loadimage(&picture[2], _T("../武器贴图/木棍.png"), 192, 192);
+	loadimage(&picture[3], _T("../武器贴图/石斧.png"), 192, 192);
+	loadimage(&picture[4], _T("../武器贴图/苦无.png"), 192, 192);
+	loadimage(&picture[5], _T("../武器贴图/木剑.png"), 192, 192);
+	loadimage(&picture[6], _T("../武器贴图/银箭.png"), 192, 192);
+	loadimage(&picture[7], _T("../武器贴图/镰刀.png"), 192, 192);
+	loadimage(&picture[8], _T("../武器贴图/双刃剑.png"), 192, 192);
+	loadimage(&picture[9], _T("../武器贴图/手里剑.png"), 192, 192);
+	loadimage(&picture[10], _T("../武器贴图/大剑.png"), 192, 192);
+	loadimage(&picture[11], _T("../武器贴图/绿帽.png"), 192, 192);
+	loadimage(&picture[12], _T("../武器贴图/刺剑.png"), 192, 192);
+	loadimage(&picture[13], _T("../武器贴图/靶子.png"), 192, 192);
+	loadimage(&picture[14], _T("../武器贴图/钻石剑.png"), 192, 192);
+	loadimage(&picture[15], _T("../武器贴图/金箭.png"), 192, 192);
+	loadimage(&picture[16], _T("../武器贴图/法棍面包.png"), 192, 192);
+	loadimage(&picture[17], _T("../武器贴图/契约胜利之剑.png"), 192, 192);
+	loadimage(&picture[18], _T("../武器贴图/爆竹.png"), 192, 192);
+	loadimage(&picture[19], _T("../武器贴图/针.png"), 192, 192);
+	loadimage(&picture[20], _T("../武器贴图/爱神之箭.png"), 192, 192);
+	loadimage(&picture[21], _T("../武器贴图/手枪.png"), 192, 192);
+	loadimage(&picture[22], _T("../武器贴图/金桂之剑.png"), 192, 192);
+	loadimage(&picture[23], _T("../武器贴图/船锚.png"), 192, 192);
+	loadimage(&picture[24], _T("../武器贴图/朗基努斯枪.png"), 192, 192);
+	loadimage(&picture[25], _T("../武器贴图/新华字典.png"), 192, 192);
+	loadimage(&picture[26], _T("../武器贴图/蓝蔷薇之剑.png"), 192, 192);
+	loadimage(&picture[27], _T("../武器贴图/铲子.png"), 192, 192);
+	loadimage(&picture[28], _T("../武器贴图/水滴.png"), 192, 192);
+	loadimage(&picture[29], _T("../武器贴图/夜空之剑.png"), 192, 192);
+	loadimage(&picture[30], _T("../武器贴图/程序错误.png"), 192, 192);
+	loadimage(&picture[31], _T("../武器贴图/十字架.png"), 192, 192);
+	loadimage(&picture[32], _T("../武器贴图/末影珍珠.png"), 192, 192);
+	loadimage(&picture[33], _T("../武器贴图/时之沙漏.png"), 192, 192);
+	loadimage(&picture[34], _T("../武器贴图/燃火大剑.png"), 192, 192);
+	loadimage(&picture[35], _T("../武器贴图/干将.png"), 192, 192);
+	loadimage(&picture[36], _T("../武器贴图/莫邪.png"), 192, 192);
+
+	//---------------------------养成界面预加载区↑----------------------------------------------------------------------
+	//----------------------角色预加载区&存档读取区↓-------------------------------------------------------------------
+
+	int w1_num, w2_num, w1_intensify, w2_intensify, w_num[20];//当前装备武器编号，储存读取存档中背包中武器的编号
+	int act, level_num;//当前使用角色,已解锁关卡数
+	int money, level_money;//金币持有数,本关获得金币数
+	int points[4];//角色加点
+	weapon handbag[20];//武器背包
+	weapon temp;//背包武器与装备武器交换中间值
+
+	IMAGE e_picture[30][2];//敌人贴图二维数组
+	IMAGE boss[10];
+	IMAGE e_book[30];
+	character e_cha[36];//敌人角色数组
+
+	opponent rival[36];//敌人数组
+	character I;
+	player me;//玩家
+
+
+	for (int i = 0; i < 20; i++)//背包数组初始化
+		handbag[i] = { -1,0,NULL,0,0,0,0,0,NULL,NULL,0 };
+	FILE* file = NULL;
+
+	if (file_num == 1)
+		file = fopen("../存档/存档1.txt", "r");
+	else if (file_num == 2)
+		file = fopen("../存档/存档2.txt", "r");
+	else if (file_num == 3)
+		file = fopen("../存档/存档3.txt", "r");
+
+	if (file == NULL)//若文件打开失败则退出游戏
+		exit(0);
+
+	fscanf(file, "%d\n", &act);//读取当前选择角色
+	fscanf(file, "%d %d\n", &w1_num, &w2_num);//读取当前装备武器编号
+	fscanf(file, "%d %d\n", &w1_intensify, &w2_intensify);//读取当前装备武器强化等级
+
+	for (int i = 0; i < 20; i++) {//读取存档中背包中武器的编号
+		fscanf(file, "%d ", &w_num[i]);
+		if (w_num[i] != -1)
+			handbag[i] = handbook[w_num[i]];
+	}
+	fscanf(file, "\n%d\n", &money);//读取金币数
+
+	for (int i = 0; i < 20; i++) //读取存档中背包中武器强化等级
+		fscanf(file, "%d ", &handbag[i].intensify);
+
+	fscanf(file, "\n%d\n", &level_num);//读取已解锁关卡数
+	fscanf(file, "%d %d %d %d\n", &points[0], &points[1], &points[2], &points[3]);//读取加点
+	fclose(file);//关闭文件夹
+
+	IMAGE  b1, b2, b3, b4, actor1[6], actor2[6], actor3[6];//人物底座贴图，三位可选角色贴图
+
+	loadimage(&b1, _T("../角色&场景贴图/场景-崖.png"));
+	loadimage(&b2, _T("../角色&场景贴图/场景-柱子.png"));
+	loadimage(&b3, _T("../角色&场景贴图/无.png"));
+	loadimage(&b4, _T("../角色&场景贴图/场景-船.png"));
+
+	loadimage(&actor1[0], _T("../角色&场景贴图/蕾欧娜1.png"), 54, 64);
+	loadimage(&actor1[1], _T("../角色&场景贴图/蕾欧娜2.png"), 54, 64);
+	loadimage(&actor1[2], _T("../角色&场景贴图/蕾欧娜3.png"));
+	loadimage(&actor1[3], _T("../角色&场景贴图/蕾欧娜4.png"));
+	loadimage(&actor1[4], _T("../角色&场景贴图/蕾欧娜5.png"));
+	loadimage(&actor1[5], _T("../背景/蕾欧娜.png"));
+
+	loadimage(&actor2[0], _T("../角色&场景贴图/猫女1.png"), 54, 64);
+	loadimage(&actor2[1], _T("../角色&场景贴图/猫女2.png"), 54, 64);
+	loadimage(&actor2[2], _T("../角色&场景贴图/猫女3.png"));
+	loadimage(&actor2[3], _T("../角色&场景贴图/猫女4.png"));
+	loadimage(&actor2[4], _T("../角色&场景贴图/猫女5.png"));
+	loadimage(&actor2[5], _T("../背景/猫女.png"));
+
+	loadimage(&actor3[0], _T("../角色&场景贴图/斋藤一1.png"), 54, 64);
+	loadimage(&actor3[1], _T("../角色&场景贴图/斋藤一2.png"), 54, 64);
+	loadimage(&actor3[2], _T("../角色&场景贴图/斋藤一3.png"));
+	loadimage(&actor3[3], _T("../角色&场景贴图/斋藤一4.png"));
+	loadimage(&actor3[4], _T("../角色&场景贴图/斋藤一5.png"));
+	loadimage(&actor3[5], _T("../背景/斋藤一.png"));
+	//初始化角色数值↓
+	if (act == 1) {
+		I = { 30,30,0,&actor1[0],&actor1[1],&b4,handbook[w1_num],handbook[w2_num] };
+		me = { _T("蕾欧娜"), I ,&actor1[2], &actor1[3], &actor1[4],20,20,1 };
+	}
+	else if (act == 2) {
+		I = { 60,60,1,&actor2[0],&actor2[1],&b4,handbook[w1_num],handbook[w2_num] };
+		me = { _T("猫女"), I ,&actor2[2], &actor2[3], &actor2[4],10,10,0 };
+	}
+	else if (act == 3) {
+		I = { 10,10,0,&actor3[0],&actor3[1],&b4,handbook[w1_num],handbook[w2_num] };
+		me = { _T("斋藤一"), I ,&actor3[2], &actor3[3], &actor3[4],30,30,2 };
+	}
+	//角色加点载入↓
+	me.I.hp += points[0] * 20;
+	me.I.mhp += points[0] * 20;
+	me.pp += points[1] * 15;
+	me.mpp += points[1] * 15;
+	me.I.hpreturn += points[2];
+	me.ppreturn += points[3];
+	me.I.w1.intensify = w1_intensify;
+	me.I.w2.intensify = w2_intensify;
+
+	//武器强化数据赋值↓
+	for (int i = 0; i < 20; i++)
+		strengthen(handbag[i]);//武器强化函数
+
+	strengthen(me.I.w1);//武器强化函数
+	strengthen(me.I.w2);
+
+	//---------------------敌人数据载入↓--------------------------------------------------------
+	loadimage(&e_picture[0][0], _T("../角色&场景贴图/鸡1.png"), 54, 64);//敌人1-鸡
+	loadimage(&e_picture[0][1], _T("../角色&场景贴图/鸡2.png"), 54, 64);
+	loadimage(&e_book[0], _T("../角色&场景贴图/鸡.png"));
+	e_cha[0] = { 30,30,0,&e_picture[0][0],&e_picture[0][1],&b1,handbook[2],handbook[4] };
+	rival[0] = { _T("村口的鸡"), 30, 210,e_cha[0], NULL,&e_book[0],120 ,5 };
+
+	loadimage(&e_picture[1][0], _T("../角色&场景贴图/捣蛋的小孩1.png"), 54, 64);//敌人2-捣蛋的小孩
+	loadimage(&e_picture[1][1], _T("../角色&场景贴图/捣蛋的小孩2.png"), 54, 64);
+	loadimage(&e_book[1], _T("../角色&场景贴图/小孩.png"));
+	e_cha[1] = { 40,40,0,&e_picture[1][0],&e_picture[1][1],&b1,handbook[2],handbook[3] };
+	rival[1] = { _T("捣蛋的小孩"), 30, 210,e_cha[1], NULL,&e_book[1],120 ,8 };
+
+	loadimage(&e_picture[2][0], _T("../角色&场景贴图/狼1.png"), 54, 64);//敌人3-狼
+	loadimage(&e_picture[2][1], _T("../角色&场景贴图/狼2.png"), 54, 64);
+	loadimage(&e_book[2], _T("../角色&场景贴图/狼.png"));
+	e_cha[2] = { 60,60,0,&e_picture[2][0],&e_picture[2][1],&b1,handbook[5],handbook[3] };
+	rival[2] = { _T("狼"), 30, 210,e_cha[2], NULL,&e_book[2],110 ,11 };
+
+	loadimage(&e_picture[3][0], _T("../角色&场景贴图/强盗1.png"), 54, 64);//敌人4-强盗
+	loadimage(&e_picture[3][1], _T("../角色&场景贴图/强盗2.png"), 54, 64);
+	loadimage(&e_book[3], _T("../角色&场景贴图/强盗.png"));
+	e_cha[3] = { 75,75,0,&e_picture[3][0],&e_picture[3][1],&b1,handbook[6],handbook[7] };
+	rival[3] = { _T("强盗"), 30, 210,e_cha[3], NULL,&e_book[3],100 ,14 };
+
+	loadimage(&e_picture[4][0], _T("../角色&场景贴图/史莱姆1.png"), 54, 64);//敌人5-史莱姆
+	loadimage(&e_picture[4][1], _T("../角色&场景贴图/史莱姆2.png"), 54, 64);
+	loadimage(&e_book[4], _T("../角色&场景贴图/史莱姆.png"));
+	e_cha[4] = { 80,80,1,&e_picture[4][0],&e_picture[4][1],&b1,handbook[8],handbook[6] };
+	rival[4] = { _T("史莱姆"), 30, 210, e_cha[4], NULL,&e_book[4],100 ,17 };
+
+	loadimage(&e_picture[5][0], _T("../角色&场景贴图/魔女.png"));//敌人6-魔女-BOSS
+	loadimage(&boss[0], _T("../角色&场景贴图/魔女立绘.png"));
+	loadimage(&e_book[5], _T("../角色&场景贴图/魔女.png"), 200, 261);
+	e_cha[5] = { 120,120,2,&e_picture[5][0],&e_picture[5][0],&b3,handbook[10],handbook[11] };
+	rival[5] = { _T("魔女"), -10, 160, e_cha[5], &boss[0],&e_book[5], 95, 25 };
+
+	loadimage(&e_picture[6][0], _T("../角色&场景贴图/敌_猫女1.png"), 54, 64);//敌人7-猫女
+	loadimage(&e_picture[6][1], _T("../角色&场景贴图/敌_猫女2.png"), 54, 64);
+	loadimage(&e_book[6], _T("../角色&场景贴图/猫女4.png"), 186, 192);
+	e_cha[6] = { 90,90,1,&e_picture[6][0],&e_picture[6][1],&b2,handbook[7],handbook[9] };
+	rival[6] = { _T("猫女"), 30, 210, e_cha[6], NULL,&e_book[6],80, 18 };
+
+	loadimage(&e_picture[7][0], _T("../角色&场景贴图/佣兵1.png"), 54, 64);//敌人8-佣兵
+	loadimage(&e_picture[7][1], _T("../角色&场景贴图/佣兵2.png"), 54, 64);
+	loadimage(&e_book[7], _T("../角色&场景贴图/佣兵.png"));
+	e_cha[7] = { 110,110,1,&e_picture[7][0],&e_picture[7][1],&b2,handbook[8],handbook[10] };
+	rival[7] = { _T("佣兵"), 30, 210, e_cha[7], NULL,&e_book[7], 90, 21 };
+
+	loadimage(&e_picture[8][0], _T("../角色&场景贴图/魔法使1.png"), 54, 64);//敌人9-魔法使
+	loadimage(&e_picture[8][1], _T("../角色&场景贴图/魔法使2.png"), 54, 64);
+	loadimage(&e_book[8], _T("../角色&场景贴图/魔法使.png"));
+	e_cha[8] = { 125,125,1,&e_picture[8][0],&e_picture[8][1],&b2,handbook[12],handbook[13] };
+	rival[8] = { _T("魔法使"), 30, 210, e_cha[8], NULL,&e_book[8], 90, 24 };
+
+	loadimage(&e_picture[9][0], _T("../角色&场景贴图/天眷者.png"));//敌人10-天眷者
+	loadimage(&e_book[9], _T("../角色&场景贴图/天眷者.png"), 196, 250);
+	e_cha[9] = { 140,140,1,&e_picture[9][0],&e_picture[9][0],&b3,handbook[14],handbook[13] };
+	rival[9] = { _T("天眷者"), -45, 150, e_cha[9], NULL,&e_book[9], 90, 27 };
+
+	loadimage(&e_picture[10][0], _T("../角色&场景贴图/精灵族人1.png"), 54, 64);//敌人11-精灵族人
+	loadimage(&e_picture[10][1], _T("../角色&场景贴图/精灵族人2.png"), 54, 64);
+	loadimage(&e_book[10], _T("../角色&场景贴图/精灵族人.png"));
+	e_cha[10] = { 160,160,2,&e_picture[10][0],&e_picture[10][1],&b2,handbook[12],handbook[16] };
+	rival[10] = { _T("精灵族人"), 30, 210, e_cha[10], NULL,&e_book[10], 90, 30 };
+
+	loadimage(&e_picture[11][0], _T("../角色&场景贴图/恶蛟.png"));//敌人12-恶蛟-BOSS
+	loadimage(&boss[1], _T("../角色&场景贴图/恶蛟立绘.png"));
+	loadimage(&e_book[11], _T("../角色&场景贴图/恶蛟.png"), 250, 264);
+	e_cha[11] = { 200,200,3,&e_picture[11][0],&e_picture[11][0],&b3,handbook[14],handbook[17] };
+	rival[11] = { _T("恶蛟"), 0, 140, e_cha[11], &boss[1],&e_book[11], 90, 45 };
+
+	loadimage(&e_picture[12][0], _T("../角色&场景贴图/敌_斋藤一1.png"), 54, 64);//敌人13-斋藤一
+	loadimage(&e_picture[12][1], _T("../角色&场景贴图/敌_斋藤一2.png"), 54, 64);
+	loadimage(&e_book[12], _T("../角色&场景贴图/斋藤一4.png"), 186, 192);
+	e_cha[12] = { 165,165,2,&e_picture[12][0],&e_picture[12][1],&b1,handbook[19],handbook[19] };
+	rival[12] = { _T("斋藤一"), 30, 210, e_cha[12], NULL,&e_book[12], 4, 32 };
+
+	loadimage(&e_picture[13][0], _T("../角色&场景贴图/风之旅人.png"));//敌人14-风之旅人
+	loadimage(&e_book[13], _T("../角色&场景贴图/风之旅人.png"), 220, 240);
+	e_cha[13] = { 180,180,2,&e_picture[13][0],&e_picture[13][0],&b3,handbook[16],handbook[18] };
+	rival[13] = { _T("风之旅人"), -10, 165, e_cha[13], NULL,&e_book[13], 80, 35 };
+
+	loadimage(&e_picture[14][0], _T("../角色&场景贴图/西风骑士1.png"), 54, 64);//敌人15-西风骑士
+	loadimage(&e_picture[14][1], _T("../角色&场景贴图/西风骑士2.png"), 54, 64);
+	loadimage(&e_book[14], _T("../角色&场景贴图/西风骑士.png"));
+	e_cha[14] = { 190,190,2,&e_picture[14][0],&e_picture[14][1],&b1,handbook[18],handbook[21] };
+	rival[14] = { _T("西风骑士"), 30, 210, e_cha[14], NULL,&e_book[14], 80, 38 };
+
+	loadimage(&e_picture[15][0], _T("../角色&场景贴图/天启骑士.png"));//敌人16-天启骑士
+	loadimage(&e_book[15], _T("../角色&场景贴图/天启骑士.png"), 310, 250);
+	e_cha[15] = { 225,225,1,&e_picture[15][0],&e_picture[15][0],&b3,handbook[21],handbook[22] };
+	rival[15] = { _T("天启骑士"), -10, 165, e_cha[15], NULL, &e_book[15],80 ,40 };
+
+	loadimage(&e_picture[16][0], _T("../角色&场景贴图/鲛人1.png"), 62, 64);//敌人17-鲛人
+	loadimage(&e_picture[16][1], _T("../角色&场景贴图/鲛人2.png"), 62, 64);
+	loadimage(&e_book[16], _T("../角色&场景贴图/鲛人.png"));
+	e_cha[16] = { 215,215,2,&e_picture[16][0],&e_picture[16][1],&b1,handbook[22],handbook[23] };
+	rival[16] = { _T("鲛人"), 30, 210, e_cha[16], NULL, &e_book[16], 80 ,42 };
+
+	loadimage(&e_picture[17][0], _T("../角色&场景贴图/丘比特.png"));//敌人18-丘比特-BOSS
+	loadimage(&boss[2], _T("../角色&场景贴图/丘比特立绘.png"));
+	loadimage(&e_book[17], _T("../角色&场景贴图/丘比特.png"), 180, 200);
+	e_cha[17] = { 250,250,3,&e_picture[17][0],&e_picture[17][0],&b3,handbook[15],handbook[20] };
+	rival[17] = { _T("丘比特"),  0, 170, e_cha[17], &boss[2], &e_book[17], 30 ,60 };
+
+	loadimage(&e_picture[18][0], _T("../角色&场景贴图/落魄勇者1.png"), 54, 64);//敌人19-落魄勇者
+	loadimage(&e_picture[18][1], _T("../角色&场景贴图/落魄勇者2.png"), 54, 64);
+	loadimage(&e_book[18], _T("../角色&场景贴图/落魄勇者.png"));
+	e_cha[18] = { 230,230,2,&e_picture[18][0],&e_picture[18][1],&b1,handbook[24],handbook[22] };
+	rival[18] = { _T("落魄勇者"), 30, 210, e_cha[18], NULL, &e_book[18], 70 ,48 };
+
+	loadimage(&e_picture[19][0], _T("../角色&场景贴图/妖精.png"));//敌人20-妖精
+	loadimage(&e_book[19], _T("../角色&场景贴图/妖精.png"), 165, 210);
+	e_cha[19] = { 245,245,2,&e_picture[19][0],&e_picture[19][0],&b3,handbook[25],handbook[24] };
+	rival[19] = { _T("妖精"), 0, 150, e_cha[19], NULL, &e_book[19], 70 ,52 };
+
+	loadimage(&e_picture[20][0], _T("../角色&场景贴图/神官1.png"), 56, 64);//敌人21-神官
+	loadimage(&e_picture[20][1], _T("../角色&场景贴图/神官2.png"), 56, 64);
+	loadimage(&e_book[20], _T("../角色&场景贴图/神官.png"));
+	e_cha[20] = { 260,260,3,&e_picture[20][0],&e_picture[20][1],&b2,handbook[27],handbook[26] };
+	rival[20] = { _T("神官"), 30, 210, e_cha[20], NULL, &e_book[20], 65 ,56 };
+
+	loadimage(&e_picture[21][0], _T("../角色&场景贴图/射手座.png"));//敌人22-射手座
+	loadimage(&e_book[21], _T("../角色&场景贴图/射手座.png"), 190, 260);
+	e_cha[21] = { 280, 280, 4, &e_picture[21][0], &e_picture[21][0], &b3, handbook[6], handbook[15] };
+	rival[21] = { _T("射手座"), 10, 100, e_cha[21], NULL, &e_book[21], 5, 80 };
+
+	loadimage(&e_picture[22][0], _T("../角色&场景贴图/鸦.png"));//敌人23-鸦
+	loadimage(&e_book[22], _T("../角色&场景贴图/鸦.png"), 183, 200);
+	e_cha[22] = { 320, 320, 3, &e_picture[22][0], &e_picture[22][0], &b3, handbook[26], handbook[27] };
+	rival[22] = { _T("鸦"), -10, 170, e_cha[22], NULL, &e_book[22], 60, 60 };
+
+	loadimage(&e_picture[23][0], _T("../角色&场景贴图/不死鸟.png"));//敌人24-不死鸟-BOSS
+	loadimage(&boss[3], _T("../角色&场景贴图/不死鸟立绘.png"));
+	loadimage(&e_book[23], _T("../角色&场景贴图/不死鸟.png"), 273, 300);
+	e_cha[23] = { 400, 400, 5, &e_picture[23][0], &e_picture[23][0], &b3, handbook[28], handbook[29] };
+	rival[23] = { _T("不死鸟"), -10, 120, e_cha[23], &boss[3], &e_book[23], 100, 100 };
+
+	loadimage(&e_picture[24][0], _T("../角色&场景贴图/天启之子.png"));//敌人25-天启之子
+	loadimage(&e_book[24], _T("../角色&场景贴图/天启之子.png"), 202, 220);
+	e_cha[24] = { 340, 340, 4, &e_picture[24][0], &e_picture[24][0], &b3, handbook[28], handbook[30] };
+	rival[24] = { _T("天启之子"), -10, 140, e_cha[24], NULL, &e_book[24], 60, 70 };
+
+	loadimage(&e_picture[25][0], _T("../角色&场景贴图/石像鬼1.png"), 56, 64);//敌人26-石像鬼
+	loadimage(&e_picture[25][1], _T("../角色&场景贴图/石像鬼2.png"), 56, 64);
+	loadimage(&e_book[25], _T("../角色&场景贴图/石像鬼.png"));
+	e_cha[25] = { 380, 380, 5, &e_picture[25][0], &e_picture[25][1], &b3, handbook[30], handbook[31] };
+	rival[25] = { _T("石像鬼"),31, 210, e_cha[25], NULL, &e_book[25], 55, 80 };
+
+	loadimage(&e_picture[26][0], _T("../角色&场景贴图/堕落.png"));//敌人27-堕落
+	loadimage(&e_book[26], _T("../角色&场景贴图/堕落.png"), 170, 250);
+	e_cha[26] = { 420, 420, 5, &e_picture[26][0], &e_picture[26][0], &b3, handbook[29], handbook[32] };
+	rival[26] = { _T("堕落"), -10, 120, e_cha[26], NULL, &e_book[26], 50, 90 };
+
+	loadimage(&e_picture[27][0], _T("../角色&场景贴图/夜魔1.png"), 56, 64);//敌人28-夜魔
+	loadimage(&e_picture[27][1], _T("../角色&场景贴图/夜魔2.png"), 56, 64);
+	loadimage(&e_book[27], _T("../角色&场景贴图/夜魔.png"));
+	e_cha[27] = { 400, 400, 6, &e_picture[27][0], &e_picture[27][1], &b1, handbook[31], handbook[33] };
+	rival[27] = { _T("夜魔"), 30, 210,e_cha[27], NULL, &e_book[27], 50, 100 };
+
+	loadimage(&e_picture[28][0], _T("../角色&场景贴图/天启.png"));//敌人29-天启
+	loadimage(&boss[4], _T("../角色&场景贴图/天启立绘.png"));
+	loadimage(&e_book[28], _T("../角色&场景贴图/天启.png"), 345, 340);
+	e_cha[28] = { 600, 600, 7, &e_picture[28][0], &e_picture[28][0], &b3, handbook[34], handbook[35] };
+	rival[28] = { _T("天启"), -120, 70, e_cha[28], &boss[4], &e_book[28], 50, 0 };
+
+	loadimage(&e_picture[29][0], _T("../角色&场景贴图/暗面.png"));//敌人30-暗面
+	loadimage(&boss[5], _T("../角色&场景贴图/暗面立绘.png"));
+	loadimage(&e_book[29], _T("../角色&场景贴图/暗面.png"), 250, 330);
+	e_cha[29] = { 800, 800, 8, &e_picture[29][0], &e_picture[29][0], &b3, handbook[34], handbook[36] };
+	rival[29] = { _T("暗面"), -50, 80, e_cha[29], &boss[5], &e_book[29], 50, 0 };
+	//-----------------敌人数据载入↑------------------------------------------
+		//-------------角色预加载区↑---------------------------
+
+	Sleep(500);//避免误触
+	//循环区↓
+	while (1) {
+		BeginBatchDraw();
+		peekmessage(&mouse, EM_MOUSE);
+
+		if (mouse.lbutton == 1 && (mouse.x > 170 && mouse.x < 255) && (mouse.y > 35 && mouse.y < 70)) {
+
+			PlaySound(_T("../音效/按钮2.wav"), NULL, SND_ASYNC);
+			judge = 0;//战斗界面
+			buy = 0;
+			drink = 0;
+			forge = 0;
+			make = 0;
+			exchange = 0;
+			change = 0;
+			ac = 0;
+		}
+		else if (mouse.lbutton == 1 && (mouse.x > 360 && mouse.x < 445) && (mouse.y > 35 && mouse.y < 70)) {
+			PlaySound(_T("../音效/按钮2.wav"), NULL, SND_ASYNC);
+			judge = 1;//装备界面
+			buy = 0;
+			drink = 0;
+			forge = 0;
+			make = 0;
+			exchange = 0;
+			change = 0;
+			ac = 0;
+		}
+		else if (mouse.lbutton == 1 && (mouse.x > 545 && mouse.x < 630) && (mouse.y > 35 && mouse.y < 70)) {
+			PlaySound(_T("../音效/按钮2.wav"), NULL, SND_ASYNC);
+			judge = 2;//酒馆界面
+			buy = 0;
+			drink = 0;
+			forge = 0;
+			make = 0;
+			exchange = 0;
+			change = 0;
+			ac = 0;
+		}
+		else if (mouse.lbutton == 1 && (mouse.x > 730 && mouse.x < 820) && (mouse.y > 35 && mouse.y < 70)) {
+			PlaySound(_T("../音效/按钮2.wav"), NULL, SND_ASYNC);
+			judge = 3;//图鉴界面
+			buy = 0;
+			drink = 0;
+			forge = 0;
+			make = 0;
+			exchange = 0;
+			change = 0;
+			ac = 0;
+		}
+
+		peekmessage(&mouse, EM_MOUSE);//读取鼠标信息，多个该函数可提高灵敏度
+
+		//战斗界面↓
+		if (judge == 0) {
+
+			//背包整理↓
+			for (int i = 0; i < 19; i++)
+				for (int j = i; j < 19; j++)
+					if (handbag[i].atk < handbag[i + 1].atk) {
+						temp = handbag[i];
+						handbag[i] = handbag[i + 1];
+						handbag[i + 1] = temp;
+					}
+
+			t++;
+			putimage(-20 + 30 * cos(t * 3.14 / 300), 20 + 30 * sin(t * 3.14 / 300), &set[bk]);//旋转背景图
+
+			draw(10, 530, &set_d, 0, 0, 0.4);
+			f.lfHeight = 45;
+			if (bk == 0) {
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				settextstyle(&f);
+				outtextxy(30, 540, _T("1-旷野之息"));
+			}
+			else if (bk == 1) {
+				_tcscpy(f.lfFaceName, _T("方正姚体"));
+				settextstyle(&f);
+				outtextxy(30, 540, _T("2-空之境界"));
+			}
+			else if (bk == 2) {
+				_tcscpy(f.lfFaceName, _T("华文行楷"));
+				settextstyle(&f);
+				outtextxy(30, 540, _T("3-冲绳岛屿"));
+			}
+			else if (bk == 3) {
+				_tcscpy(f.lfFaceName, _T("华文中宋"));
+				settextstyle(&f);
+				outtextxy(30, 540, _T("4-云镜边际"));
+			}
+			else if (bk == 4) {
+				_tcscpy(f.lfFaceName, _T("华文仿宋"));
+				settextstyle(&f);
+				outtextxy(30, 540, _T("5-幻像之间"));
+			}
+
+
+			draw(0, 0, &bk1);
+			draw(30, 100, &point);
+			draw(20 + bk * 5, 220 + bk * 20, &level_1);
+
+			//打印关卡贴图1-6↓
+			if (bk * 6 + 1 > level_num)
+				draw(20 + bk * 5, 220 + bk * 20, &level_black, 0, 0, 0.7);
+
+			draw(230, 350 - bk * 40, &level_2);
+			if (bk * 6 + 2 > level_num)
+				draw(230, 350 - bk * 40, &level_black, 0, 0, 0.7);
+
+			draw(300 + bk * 60, 130, &level_3);
+			if (bk * 6 + 3 > level_num)
+				draw(300 + bk * 60, 130, &level_black, 0, 0, 0.7);
+
+			draw(440, 270, &level_4);
+			if (bk * 6 + 4 > level_num)
+				draw(440, 270, &level_black, 0, 0, 0.7);
+
+			draw(600 - bk * 60, 410, &level_5);
+			if (bk * 6 + 5 > level_num)
+				draw(600 - bk * 60, 410, &level_black, 0, 0, 0.7);
+
+			draw(750, 210 + bk * 10, &level_6);
+			if (bk * 6 + 6 > level_num)
+				draw(750, 210 + bk * 10, &level_black, 0, 0, 0.7);
+
+			if ((mouse.x > 30 && mouse.x < 120) && (mouse.y > 100 && mouse.y < 200)) {//更换关卡按钮↓
+				draw(30, 100, &point);
+				if (mouse.lbutton == 1 && bk > 0) {//更换大关—向左
+					bk--;
+					PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+					Sleep(250);
+				}
+			}
+
+			if ((mouse.x > 870 && mouse.x < 960) && (mouse.y > 100 && mouse.y < 200)) {
+				draw(30, 100, &point);
+				if (mouse.lbutton == 1 && bk < 4) {//更换大关—向右
+					bk++;
+					PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+					Sleep(250);
+				}
+			}
+			//点击关卡贴图进入对应关卡↓
+			if (bk * 6 + 1 <= level_num && mouse.lbutton && ((mouse.x > 25 + bk * 5 && mouse.x < 195 + bk * 5) && (mouse.y > 225 + bk * 20 && mouse.y < 395 + bk * 20))) {
+				level_money = fight(me, rival[bk * 6], set[bk], handbag);
+				money += level_money;
+				if (level_money > 0 && bk * 6 + 1 == level_num)
+					level_num++;
+				judge = 1;
+				save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+			}
+			else if (bk * 6 + 2 <= level_num && mouse.lbutton && ((mouse.x > 235 && mouse.x < 405) && (mouse.y > 355 - bk * 40 && mouse.y < 525 + bk * 20))) {
+				level_money = fight(me, rival[bk * 6 + 1], set[bk], handbag);
+				money += level_money;
+				if (level_money > 0 && bk * 6 + 2 == level_num)
+					level_num++;
+				judge = 1;
+				save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+			}
+			else if (bk * 6 + 3 <= level_num && mouse.lbutton && ((mouse.x > 305 + bk * 60 && mouse.x < 475 + bk * 60) && (mouse.y > 135 - bk * 40 && mouse.y < 305 + bk * 20))) {
+				level_money = fight(me, rival[bk * 6 + 2], set[bk], handbag);
+				money += level_money;
+				if (level_money > 0 && bk * 6 + 3 == level_num)
+					level_num++;
+				judge = 1;
+				save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+			}
+			else if (bk * 6 + 4 <= level_num && mouse.lbutton && ((mouse.x > 445 && mouse.x < 615) && (mouse.y > 270 && mouse.y < 440))) {
+				level_money = fight(me, rival[bk * 6 + 3], set[bk], handbag);
+				money += level_money;
+				if (level_money > 0 && bk * 6 + 4 == level_num)
+					level_num++;
+				judge = 1;
+				save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+			}
+			else if (bk * 6 + 5 <= level_num && mouse.lbutton && ((mouse.x > 605 - bk * 60 && mouse.x < 775 - bk * 60) && (mouse.y > 415 && mouse.y < 585))) {
+				level_money = fight(me, rival[bk * 6 + 4], set[bk], handbag);
+				money += level_money;
+				if (level_money > 0 && bk * 6 + 5 == level_num)
+					level_num++;
+				judge = 1;
+				save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+			}
+			else if (bk * 6 + 6 <= level_num && mouse.lbutton && ((mouse.x > 755 && mouse.x < 925) && (mouse.y > 215 + bk * 10 && mouse.y < 385 + bk * 10))) {
+				level_money = fight(me, rival[bk * 6 + 5], set[bk], handbag);
+				money += level_money;
+				if (level_money > 0 && bk * 6 + 6 == level_num)
+					level_num++;
+				judge = 1;
+				save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+			}
+			peekmessage(&mouse, EM_MOUSE);
+		}
+
+		peekmessage(&mouse, EM_MOUSE);
+
+		//装备界面↓
+		if (judge == 1) {
+
+			//背包整理↓
+			for (int i = 0; i < 19; i++)
+				for (int j = i; j < 19; j++)
+					if (handbag[i].atk < handbag[i + 1].atk) {
+						temp = handbag[i];
+						handbag[i] = handbag[i + 1];
+						handbag[i + 1] = temp;
+					}
+
+			putimage(0, 0, &bk2);
+			draw(37, 485, &state);//属性栏
+			f.lfHeight = 44;
+			settextcolor(BLACK);
+			_tcscpy(f.lfFaceName, _T("华文新魏"));
+			settextstyle(&f);//属性数值打印
+			_itoa(me.I.mhp, str, 10);
+			ctot(tstr, str);
+			outtextxy(160, 505, tstr);
+
+			_itoa(me.mpp, str, 10);
+			ctot(tstr, str);
+			outtextxy(380, 503, tstr);
+
+			_itoa(me.I.hpreturn, str, 10);
+			ctot(tstr, str);
+			outtextxy(160, 553, tstr);
+
+			_itoa(me.ppreturn, str, 10);
+			ctot(tstr, str);
+			outtextxy(380, 553, tstr);
+
+			draw(185, 296, &shadow, 0, 0, 0.4);
+			if (count >= 0 && count < 100)//人物行走
+				draw(170, 240, me.pic1);
+			else if ((count >= 100 && count < 200) || (count >= 300 && count <= 400)) {
+				draw(170, 240, me.pic2);
+				if (count == 400)
+					count = 0;
+			}
+			else if (count >= 200 && count < 300)
+				draw(170, 240, me.pic3);
+
+			for (int i = 0; i < 5; i++) //武器贴图打印
+				for (int j = 0; j < 4; j++) {
+					draw(540 + j * 110, 120 + i * 100, &diamond);
+					if (handbag[4 * i + j].p != NULL)
+						draw(552 + j * 110, 132 + i * 100, handbag[4 * i + j].p);
+
+				}
+
+			peekmessage(&mouse, EM_MOUSE);
+
+			draw(78, 160, me.I.w1.p);//玩家当前装备贴图
+			draw(355, 160, me.I.w2.p);
+			if ((mouse.x > 68 && mouse.x < 148) && (mouse.y > 148 && mouse.y < 230)) {//当前装备属性窗口
+				draw(148, 128, &eq_mes, 0, 0, 0.9);
+				draw(67, 148, &diamond, 0, 0, 0.4);
+				f.lfHeight = 25;
+				settextcolor(WHITE);
+				_tcscpy(f.lfFaceName, _T("华文中宋"));
+				settextstyle(&f);
+				ctot(tstr, me.I.w1.name);//打印武器名
+				outtextxy(168, 138, tstr);
+
+				f.lfHeight = 19;//打印武器各属性
+				settextstyle(&f);
+				outtextxy(163, 178, _T("攻击力:"));
+				_itoa(me.I.w1.atk, str, 10);
+				ctot(tstr, str);
+				outtextxy(223, 179, tstr);
+
+				outtextxy(258, 178, _T("所需体力:"));
+				_itoa(me.I.w1.pp, str, 10);
+				ctot(tstr, str);
+				outtextxy(333, 179, tstr);
+
+				outtextxy(163, 208, _T("耐久值:"));
+				_itoa(me.I.w1.sp, str, 10);
+				ctot(tstr, str);
+				outtextxy(223, 209, tstr);
+
+				outtextxy(258, 208, _T("冷却时间:"));
+				sprintf(str, "%.1lf", me.I.w1.CD);
+				ctot(tstr, str);
+				outtextxy(333, 209, tstr);
+
+				f.lfHeight = 18;//打印武器描述
+				settextcolor(RGB(218, 218, 218));
+				settextstyle(&f);
+				outtextxy(148, 248, me.I.w1.story);
+
+
+
+				f.lfHeight = 25;//打印出售金币
+				settextcolor(YELLOW);
+				settextstyle(&f);
+				outtextxy(315, 140, _T("$"));
+				_itoa(me.I.w1.money, str, 10);
+				ctot(tstr, str);
+				outtextxy(330, 140, tstr);
+			}
+			if ((mouse.x > 345 && mouse.x < 425) && (mouse.y > 148 && mouse.y < 230)) {
+				draw(425, 128, &eq_mes, 0, 0, 0.9);
+				draw(344, 146, &diamond, 0, 0, 0.4);
+				f.lfHeight = 25;
+				settextcolor(WHITE);
+				_tcscpy(f.lfFaceName, _T("华文中宋"));
+				settextstyle(&f);
+				ctot(tstr, me.I.w2.name);//打印武器名
+				outtextxy(445, 138, tstr);
+
+				f.lfHeight = 19;//打印武器各属性
+				settextstyle(&f);
+				outtextxy(440, 178, _T("攻击力:"));
+				_itoa(me.I.w2.atk, str, 10);
+				ctot(tstr, str);
+				outtextxy(500, 179, tstr);
+
+				outtextxy(535, 178, _T("所需体力:"));
+				_itoa(me.I.w2.pp, str, 10);
+				ctot(tstr, str);
+				outtextxy(610, 179, tstr);
+
+				outtextxy(440, 208, _T("耐久值:"));
+				_itoa(me.I.w2.sp, str, 10);
+				ctot(tstr, str);
+				outtextxy(500, 209, tstr);
+
+				outtextxy(535, 208, _T("冷却时间:"));
+				sprintf(str, "%.1lf", me.I.w2.CD);
+				ctot(tstr, str);
+				outtextxy(610, 209, tstr);
+
+				f.lfHeight = 18;//打印武器描述
+				settextcolor(RGB(218, 218, 218));
+				settextstyle(&f);
+				outtextxy(425, 248, me.I.w2.story);
+
+				f.lfHeight = 25;//打印出售金币
+				settextcolor(YELLOW);
+				settextstyle(&f);
+				outtextxy(592, 140, _T("$"));
+				_itoa(me.I.w2.money, str, 10);
+				ctot(tstr, str);
+				outtextxy(607, 140, tstr);
+
+			}
+
+			for (int i = 0; i < 5; i++)//武器属性窗口
+				for (int j = 0; j < 4; j++)
+					if (CD <= 0 && (mouse.x > 540 + j * 110 && mouse.x < 620 + j * 110) && (mouse.y > 120 + i * 100 && mouse.y < 200 + i * 100)) {
+						draw(540 + j * 110, 120 + i * 100, &diamond, 0, 0, 0.5);
+						if (handbag[4 * i + j].p != NULL) {
+							if (!mouse.lbutton) {
+								draw(310 + j * 110, 100 + i * 100, &eq_mes, 0, 0, 0.9);
+								f.lfHeight = 25;
+								settextcolor(WHITE);
+								_tcscpy(f.lfFaceName, _T("华文中宋"));
+								settextstyle(&f);
+								ctot(tstr, handbag[4 * i + j].name);//打印武器名
+								outtextxy(330 + j * 110, 110 + i * 100, tstr);
+
+								f.lfHeight = 19;//打印武器各属性
+								settextstyle(&f);
+								outtextxy(325 + j * 110, 150 + i * 100, _T("攻击力:"));
+								_itoa(handbag[4 * i + j].atk, str, 10);
+								ctot(tstr, str);
+								outtextxy(385 + j * 110, 151 + i * 100, tstr);
+
+								outtextxy(420 + j * 110, 150 + i * 100, _T("所需体力:"));
+								_itoa(handbag[4 * i + j].pp, str, 10);
+								ctot(tstr, str);
+								outtextxy(495 + j * 110, 151 + i * 100, tstr);
+
+								outtextxy(325 + j * 110, 180 + i * 100, _T("耐久值:"));
+								_itoa(handbag[4 * i + j].sp, str, 10);
+								ctot(tstr, str);
+								outtextxy(385 + j * 110, 181 + i * 100, tstr);
+
+								outtextxy(420 + j * 110, 180 + i * 100, _T("冷却时间:"));
+								sprintf(str, "%.1lf", handbag[4 * i + j].CD);
+								ctot(tstr, str);
+								outtextxy(495 + j * 110, 181 + i * 100, tstr);
+
+								f.lfHeight = 18;//打印武器描述
+								settextcolor(RGB(218, 218, 218));
+								settextstyle(&f);
+								outtextxy(310 + j * 110, 220 + i * 100, handbag[4 * i + j].story);
+
+
+								f.lfHeight = 25;//打印出售金币
+								settextcolor(YELLOW);
+								settextstyle(&f);
+								outtextxy(478 + j * 110, 112 + i * 100, _T("$"));
+								_itoa(handbag[4 * i + j].money, str, 10);
+								ctot(tstr, str);
+								outtextxy(492 + j * 110, 112 + i * 100, tstr);
+
+							}
+							else {
+								i1 = i;
+								j1 = j;
+								CD = 0.25;
+							}
+						}
+					}
+
+			if (CD > 0) {//装备按钮
+				draw(460 + j1 * 110, 130 + i1 * 100, &eq_dre, 0, 0, 0.8);
+				f.lfHeight = 20;
+				settextcolor(RGB(50, 30, 10));
+				_tcscpy(f.lfFaceName, _T("华文琥珀"));
+				settextstyle(&f);
+				outtextxy(470 + j1 * 110, 135 + i1 * 100, _T("装备[1]"));
+				outtextxy(470 + j1 * 110, 158 + i1 * 100, _T("装备[2]"));
+				outtextxy(482 + j1 * 110, 182 + i1 * 100, _T("出售"));
+				if (mouse.lbutton == 1 && (mouse.x > 460 + j1 * 110 && mouse.x < 540 + j1 * 110) && (mouse.y > 130 + i1 * 100 && mouse.y < 155 + i1 * 100)) {
+					temp = me.I.w1;
+					me.I.w1 = handbag[4 * i1 + j1];
+					handbag[4 * i1 + j1] = temp;
+					CD = 0;
+					save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+				}
+				else if (mouse.lbutton == 1 && (mouse.x > 460 + j1 * 110 && mouse.x < 540 + j1 * 110) && (mouse.y > 155 + i1 * 100 && mouse.y < 180 + i1 * 100)) {
+					temp = me.I.w2;
+					me.I.w2 = handbag[4 * i1 + j1];
+					handbag[4 * i1 + j1] = temp;
+					CD = 0;
+					save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+				}
+				else if (mouse.lbutton == 1 && (mouse.x > 460 + j1 * 110 && mouse.x < 540 + j1 * 110) && (mouse.y > 180 + i1 * 100 && mouse.y < 205 + i1 * 100)) {
+					money += handbag[4 * i1 + j1].money;
+					handbag[4 * i1 + j1] = { -1,0,NULL,0,0,0,0,0,NULL,NULL,0 };
+					CD = 0;
+					Sleep(150);
+					save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+				}
+				CD -= 0.001;
+			}
+
+			count++;
+			Sleep(1);
+			peekmessage(&mouse, EM_MOUSE);
+
+		}
+
+		peekmessage(&mouse, EM_MOUSE);
+
+		//酒馆界面↓
+		if (judge == 2) {
+
+			putimage(-10, 45, &map);
+			draw(0, 0, &bk3);
+			if (!ac && !buy && !drink && !forge && !make && !change && !exchange) {
+				if (mouse.lbutton && (mouse.x > 460 && mouse.x < 520) && (mouse.y > 290 && mouse.y < 340))//点击酒馆老板
+					buy = 1;
+
+				else if (mouse.lbutton && (mouse.x > 710 && mouse.x < 770) && (mouse.y > 270 && mouse.y < 330))//点击铁匠
+					forge = 1;
+
+				else if (mouse.lbutton && (mouse.x > 795 && mouse.x < 850) && (mouse.y > 260 && mouse.y < 330))//点击收藏家
+					exchange = 1;
+
+			}
+
+			//与蕾欧娜对话↓
+			if (ac == 1) {
+				draw(480, 10, &actor1[5]);
+				draw(11, 475, &talk, 0, 0, 0.8);
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 35;
+				settextstyle(&f);
+				outtextxy(25, 490, _T("蕾欧娜："));
+				f.lfHeight = 30;
+				settextstyle(&f);
+				outtextxy(85, 540, _T("休息会儿，换我来？"));
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 555 && mouse.y < 595)) {
+					draw(695, 555, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton) {
+						I = { 30,30,0,&actor1[0],&actor1[1],&b4,me.I.w1,me.I.w2 };
+						me = { _T("蕾欧娜"), I ,&actor1[2], &actor1[3], &actor1[4],20,20,1 };
+						me.I.hp += points[0] * 20;
+						me.I.mhp += points[0] * 20;
+						me.pp += points[1] * 15;
+						me.mpp += points[1] * 15;
+						me.I.hpreturn += points[2];
+						me.ppreturn += points[3];
+						ac = 0;
+						act = 1;
+						save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+						Sleep(350);
+					}
+				}
+
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 595 && mouse.y < 635)) {
+					draw(695, 595, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton)
+						ac = 0;
+				}
+				outtextxy(700, 560, _T("1.好的。"));
+				outtextxy(700, 600, _T("2.暂时不用。"));
+			}
+
+			//与猫女对话↓
+			else if (ac == 2) {
+				draw(470, 0, &actor2[5]);
+				draw(11, 475, &talk, 0, 0, 0.8);
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 35;
+				settextstyle(&f);
+				outtextxy(25, 490, _T("猫女："));
+				f.lfHeight = 30;
+				settextstyle(&f);
+				outtextxy(85, 540, _T("需要我帮忙吗，喵？"));
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 555 && mouse.y < 595)) {
+					draw(695, 555, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton) {
+						I = { 60,60,1,&actor2[0],&actor2[1],&b4,me.I.w1,me.I.w2 };
+						me = { _T("猫女"), I ,&actor2[2], &actor2[3], &actor2[4],10,10,0 };
+						me.I.hp += points[0] * 20;
+						me.I.mhp += points[0] * 20;
+						me.pp += points[1] * 15;
+						me.mpp += points[1] * 15;
+						me.I.hpreturn += points[2];
+						me.ppreturn += points[3];
+						ac = 0;
+						act = 2;
+						save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+						Sleep(350);
+					}
+				}
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 595 && mouse.y < 635)) {
+					draw(695, 595, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton)
+						ac = 0;
+				}
+				outtextxy(700, 560, _T("1.嗯嗯！"));
+				outtextxy(700, 600, _T("2.还不是时候。"));
+			}
+
+			//与斋藤一对话↓
+			else if (ac == 3) {
+				draw(480, 10, &actor3[5]);
+				draw(11, 475, &talk, 0, 0, 0.8);
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 35;
+				settextstyle(&f);
+				outtextxy(25, 490, _T("斋藤一："));
+				f.lfHeight = 30;
+				settextstyle(&f);
+				outtextxy(85, 540, _T("怎么，心有余而力不足了？"));
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 555 && mouse.y < 595)) {
+					draw(695, 555, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton) {
+						I = { 10,10,0,&actor3[0],&actor3[1],&b4,me.I.w1,me.I.w2 };
+						me = { _T("斋藤一"), I ,&actor3[2], &actor3[3], &actor3[4],30,30,2 };
+						me.I.hp += points[0] * 20;
+						me.I.mhp += points[0] * 20;
+						me.pp += points[1] * 15;
+						me.mpp += points[1] * 15;
+						me.I.hpreturn += points[2];
+						me.ppreturn += points[3];
+						ac = 0;
+						act = 3;
+						save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+						Sleep(350);
+					}
+				}
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 595 && mouse.y < 635)) {
+					draw(695, 595, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton)
+						ac = 0;
+				}
+				outtextxy(700, 560, _T("1.确实。"));
+				outtextxy(700, 600, _T("2.还没力竭呢。"));
+			}
+
+			if (act != 1) {
+				draw(138, 289, &_shadow, 0, 0, 0.6);
+				draw(130, 263, &actor[0]);
+				if (!buy && !drink && !forge && !make && !change && !exchange && mouse.lbutton && (mouse.x > 130 && mouse.x < 190) && (mouse.y > 265 && mouse.y < 325))//点击蕾欧娜
+					ac = 1;
+			}
+			if (level_num >= 7 && act != 2) {
+				draw(228, 389, &_shadow, 0, 0, 0.6);
+				draw(220, 363, &actor[1]);
+				if (!buy && !drink && !forge && !make && !change && !exchange && mouse.lbutton && (mouse.x > 220 && mouse.x < 280) && (mouse.y > 365 && mouse.y < 425))//点击猫女
+					ac = 2;
+			}
+
+			if (level_num >= 13 && act != 3) {
+				draw(228, 289, &_shadow, 0, 0, 0.6);
+				draw(220, 263, &actor[2]);
+				if (!buy && !drink && !forge && !make && !change && !exchange && mouse.lbutton && (mouse.x > 220 && mouse.x < 280) && (mouse.y > 265 && mouse.y < 325))//点击斋藤一
+					ac = 3;
+			}
+
+
+			//加点界面↓
+			if (drink) {
+				buy = 0;
+				draw(315, 200, &drink_d, 0, 0, 0.85);
+				draw(330, 220, &drink_p[0]);
+				draw(330, 280, &drink_p[1]);
+				draw(330, 340, &drink_p[2]);
+				draw(330, 400, &drink_p[3]);
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 28;
+				settextstyle(&f);
+				outtextxy(380, 220, _T("朗姆酒                      Buy"));
+				outtextxy(380, 280, _T("龙舌兰                      Buy"));
+				outtextxy(380, 340, _T("血腥玛丽                  Buy"));
+				outtextxy(380, 400, _T("魔女之泉                  Buy"));
+
+				f.lfHeight = 30;//打印酒品价格↓
+				settextcolor(YELLOW);
+				settextstyle(&f);
+
+				if (points[0] < 10) {
+					outtextxy(460, 218, _T("$"));
+					_itoa(20 * pow(2, points[0]), str, 10);
+					ctot(tstr, str);
+					outtextxy(480, 218, tstr);
+				}
+				else
+					outtextxy(480, 218, _T("已满级"));
+
+				if (points[1] < 10) {
+					outtextxy(460, 278, _T("$"));
+					_itoa(20 * pow(2, points[1]), str, 10);
+					ctot(tstr, str);
+					outtextxy(480, 278, tstr);
+				}
+				else
+					outtextxy(480, 278, _T("已满级"));
+
+				if (points[2] < 10) {
+					outtextxy(485, 338, _T("$"));
+					_itoa(40 * pow(2, points[2]), str, 10);
+					ctot(tstr, str);
+					outtextxy(505, 338, tstr);
+				}
+				else
+					outtextxy(505, 338, _T("已满级"));
+
+				if (points[3] < 10) {
+					outtextxy(485, 398, _T("$"));
+					_itoa(30 * pow(2, points[3]), str, 10);
+					ctot(tstr, str);
+					outtextxy(505, 398, tstr);
+				}
+				else
+					outtextxy(505, 398, _T("已满级"));
+				//购买酒品(加点)↓
+				if ((mouse.x > 620 && mouse.x < 650) && (mouse.y > 220 && mouse.y < 250)) {
+					draw(612, 222, &talk_d2, 0, 0, 0.3);
+					if (mouse.lbutton && money >= 20 * pow(2, points[0]) && points[0] < 10) {
+						PlaySound(_T("../音效/购买.wav"), NULL, SND_ASYNC);
+						money -= 20 * pow(2, points[0]);
+						points[0]++;
+						me.I.hp += 20;
+						me.I.mhp += 20;
+						save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+						Sleep(300);
+					}
+				}
+
+				if ((mouse.x > 620 && mouse.x < 650) && (mouse.y > 280 && mouse.y < 310)) {
+					draw(612, 282, &talk_d2, 0, 0, 0.3);
+					if (mouse.lbutton && money >= 20 * pow(2, points[1]) && points[1] < 10) {
+						PlaySound(_T("../音效/购买.wav"), NULL, SND_ASYNC);
+						money -= 20 * pow(2, points[1]);
+						points[1]++;
+						me.pp += 15;
+						me.mpp += 15;
+						save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+						Sleep(300);
+					}
+				}
+
+				if ((mouse.x > 620 && mouse.x < 650) && (mouse.y > 340 && mouse.y < 370)) {
+					draw(612, 342, &talk_d2, 0, 0, 0.3);
+					if (mouse.lbutton && money >= 30 * pow(2, points[2]) && points[2] < 10) {
+						PlaySound(_T("../音效/购买.wav"), NULL, SND_ASYNC);
+						money -= 40 * pow(2, points[2]);
+						points[2]++;
+						me.I.hpreturn++;
+						save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+						Sleep(300);
+					}
+				}
+
+				if ((mouse.x > 620 && mouse.x < 650) && (mouse.y > 400 && mouse.y < 430)) {
+					draw(612, 402, &talk_d2, 0, 0, 0.3);
+					if (mouse.lbutton && money >= 30 * pow(2, points[3]) && points[3] < 10) {
+						PlaySound(_T("../音效/购买.wav"), NULL, SND_ASYNC);
+						money -= 30 * pow(2, points[3]);
+						points[3]++;
+						me.ppreturn++;
+						save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+						Sleep(300);
+					}
+				}
+				//打印加点条↓
+				setfillcolor(RED);
+				solidrectangle(387, 252, 385 + points[0] * 23, 268);
+				solidrectangle(387, 312, 385 + points[1] * 23, 328);
+				solidrectangle(387, 372, 385 + points[2] * 23, 388);
+				solidrectangle(387, 432, 385 + points[3] * 23, 448);
+				draw(385, 250, &drink_num);
+				draw(385, 310, &drink_num);
+				draw(385, 370, &drink_num);
+				draw(385, 430, &drink_num);
+
+				if ((mouse.x > 330 && mouse.x < 380) && (mouse.y > 200 && mouse.y < 270)) {
+					_tcscpy(f.lfFaceName, _T("方正姚体"));
+					f.lfHeight = 28;
+					settextcolor(RGB(215, 110, 110));
+					settextstyle(&f);
+					outtextxy(385, 260, _T("每级提供20点HP。"));
+				}
+				if ((mouse.x > 330 && mouse.x < 380) && (mouse.y > 280 && mouse.y < 330)) {
+					_tcscpy(f.lfFaceName, _T("方正姚体"));
+					f.lfHeight = 28;
+					settextcolor(RGB(0, 215, 255));
+					settextstyle(&f);
+					outtextxy(385, 320, _T("每级提供15点PP。"));
+				}
+				if ((mouse.x > 330 && mouse.x < 380) && (mouse.y > 340 && mouse.y < 390)) {
+					_tcscpy(f.lfFaceName, _T("方正姚体"));
+					f.lfHeight = 28;
+					settextcolor(RGB(255, 0, 0));
+					settextstyle(&f);
+					outtextxy(385, 380, _T("每级提供1点HP回复率。"));
+				}
+				if ((mouse.x > 330 && mouse.x < 380) && (mouse.y > 400 && mouse.y < 450)) {
+					_tcscpy(f.lfFaceName, _T("方正姚体"));
+					f.lfHeight = 28;
+					settextcolor(RGB(0, 255, 255));
+					settextstyle(&f);
+					outtextxy(385, 435, _T("每级提供1点PP回复率。"));
+				}
+
+
+				//点击窗口外则退出当前窗口↓
+				if (mouse.lbutton && ((mouse.x < 315 || mouse.x > 675) || (mouse.y < 200 || mouse.y > 470)))
+					drink = 0;
+
+			}
+
+			//与酒馆老板对话↓
+			if (buy && !drink && !forge && !change) {
+				draw(520, 40, &paint1);
+				draw(11, 475, &talk, 0, 0, 0.8);
+				draw(520, 40, &paint1_1);
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 35;
+				settextstyle(&f);
+				outtextxy(25, 490, _T("莉兹贝特："));
+				f.lfHeight = 30;
+				settextstyle(&f);
+				outtextxy(85, 540, _T("这位客人，喝点什么？"));
+
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 555 && mouse.y < 595)) {
+					draw(695, 555, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton) {
+						drink = 1;
+						Sleep(350);
+					}
+				}
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 595 && mouse.y < 635)) {
+					draw(695, 595, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton)
+						buy = 0;
+				}
+				outtextxy(700, 560, _T("1.可以。"));
+				outtextxy(700, 600, _T("2.谢谢,不用了。"));
+			}
+
+			//强化界面↓
+			if (make) {
+
+				forge = 0;
+				draw(75, 110, &forge_d, 0, 0, 0.9);
+
+				for (int i = 0; i < 5; i++) //武器贴图打印
+					for (int j = 0; j < 4; j++) {
+						draw(105 + j * 100, 140 + i * 90, &diamond);
+						if (handbag[4 * i + j].p != NULL)
+							draw(117 + j * 100, 152 + i * 90, handbag[4 * i + j].p);
+
+						if ((mouse.x > 105 + j * 100 && mouse.x < 185 + j * 100) && (mouse.y > 140 + i * 90 && mouse.y < 220 + i * 90)) {
+							draw(105 + j * 100, 140 + i * 90, &diamond, 0, 0, 0.5);
+							if (mouse.lbutton && handbag[4 * i + j].num >= 0) {
+								number = 4 * i + j;
+								made_num = -1;
+							}
+						}
+					}
+
+				if (number >= 0 && handbag[number].num >= 0) {
+
+					draw(610, 160, &picture[handbag[number].num]);
+
+					for (int i = 0; i < 20; i++)
+						if (number != i && handbag[number].num == handbag[i].num && handbag[number].intensify == handbag[i].intensify) {
+							made_num = i;
+							break;
+						}
+
+					f.lfHeight = 52;
+					settextcolor(WHITE);
+					_tcscpy(f.lfFaceName, _T("方正舒体"));
+					settextstyle(&f);
+					ctot(tstr, handbag[number].name);//打印武器名
+					outtextxy(530, 315, tstr);
+
+					if (handbag[number].intensify < 3) {
+						f.lfHeight = 36;
+						settextstyle(&f);
+						outtextxy(500, 470, _T("需求:"));
+						f.lfHeight = 28;
+						settextstyle(&f);
+
+						if (strlen(handbag[number].name) < 11) {
+							if (made_num >= 0)
+								outtextxy(505, 530, _T("√"));
+							else
+								outtextxy(505, 530, _T("×"));
+
+							outtextxy(525, 530, _T("另一件"));
+							outtextxy(608, 530, tstr);
+						}
+						else {
+							if (made_num >= 0)
+								outtextxy(505, 515, _T("√"));
+							else
+								outtextxy(505, 515, _T("×"));
+							outtextxy(525, 515, _T("另一件"));
+							outtextxy(550, 543, tstr);
+						}
+						f.lfHeight = 65;
+						_tcscpy(f.lfFaceName, _T("方正姚体"));
+						settextstyle(&f);
+						draw(750, 495, &talk_d3, 0, 0, 0.3);
+						outtextxy(760, 500, _T("强化"));
+
+						if ((mouse.x > 750 && mouse.x < 890) && (mouse.y > 495 && mouse.y < 575) && handbag[number].intensify < 3) {
+							draw(750, 495, &talk_d3, 0, 0, 0.3);
+
+							f.lfHeight = 55;
+							_tcscpy(f.lfFaceName, _T("华文行楷"));
+							settextcolor(YELLOW);
+							settextstyle(&f);
+							outtextxy(775, 515, _T("$"));
+							_itoa(2 * handbag[number].money, str, 10);
+							ctot(tstr, str);
+							outtextxy(810, 515, tstr);
+
+							//确认强化↓
+							if (mouse.lbutton && money >= 2 * handbag[number].money && made_num >= 0) {
+
+								PlaySound(_T("../音效/购买.wav"), NULL, SND_ASYNC);
+
+								handbag[number].intensify++;//增加强化等级
+								money -= 2 * handbag[number].money;//扣除金币
+								handbag[made_num] = { -1,0,NULL,0,0,0,0,0,NULL,NULL,0 };//清除素材武器
+
+								if (handbag[number].atk < 12)//增加攻击力
+									handbag[number].atk++;
+								else if (handbag[number].atk < 26)
+									handbag[number].atk += 2;
+								else if (handbag[number].atk >= 26)
+									handbag[number].atk += 3;
+
+								if (handbag[number].intensify == 2) {//增加耐力
+									if (handbag[number].sp < 10)
+										handbag[number].sp++;
+									else
+										handbag[number].sp += 2;
+								}
+
+								if (handbag[number].pp < 15)//增加消耗体力值
+									handbag[number].pp++;
+								else if (handbag[number].pp < 32)
+									handbag[number].pp += 2;
+								else if (handbag[number].pp >= 32)
+									handbag[number].pp += 3;
+
+								strcpy(str, handbook[handbag[number].num].name);//更新名称
+								if (handbag[number].intensify == 1)
+									strcat(str, "+1");
+								else if (handbag[number].intensify == 2)
+									strcat(str, "+2");
+								else if (handbag[number].intensify == 3)
+									strcat(str, "+3");
+
+								strcpy(handbag[number].name, str);
+								handbag[number].money = handbook[handbag[number].num].money * (1 + handbag[number].intensify);//更新金币价值
+								made_num = -1;
+								save(file_num, act, me.I.w1, me.I.w2, handbag, money, level_num, points);//存档函数
+								Sleep(300);
+							}
+
+						}
+					}
+					else {
+						f.lfHeight = 45;
+						_tcscpy(f.lfFaceName, _T("方正姚体"));
+						settextstyle(&f);
+						outtextxy(580, 510, _T("已强化至满级"));
+
+					}
+
+
+					f.lfHeight = 32;//打印武器各属性
+					_tcscpy(f.lfFaceName, _T("方正舒体"));
+					settextcolor(WHITE);
+					settextstyle(&f);
+					outtextxy(510, 380, _T("攻击力:"));
+					_itoa(handbag[number].atk, str, 10);
+					ctot(tstr, str);
+					outtextxy(615, 380, tstr);
+
+					outtextxy(690, 380, _T("所需体力:"));
+					_itoa(handbag[number].pp, str, 10);
+					ctot(tstr, str);
+					outtextxy(830, 380, tstr);
+
+					outtextxy(510, 425, _T("耐久值:"));
+					_itoa(handbag[number].sp, str, 10);
+					ctot(tstr, str);
+					outtextxy(615, 425, tstr);
+
+					outtextxy(690, 425, _T("冷却时间:"));
+					sprintf(str, "%.1lf", handbag[number].CD);
+					ctot(tstr, str);
+					outtextxy(830, 425, tstr);
+
+					if (handbag[number].intensify < 3) {
+						settextcolor(RGB(45, 255, 0));
+						settextstyle(&f);
+						outtextxy(647, 380, _T("+"));
+						if (handbag[number].atk < 12)
+							_itoa(1, str, 10);
+						else if (handbag[number].atk < 26)
+							_itoa(2, str, 10);
+						else if (handbag[number].atk >= 26)
+							_itoa(3, str, 10);
+						ctot(tstr, str);
+						outtextxy(669, 380, tstr);
+
+						if (handbag[number].intensify == 1) {
+							outtextxy(647, 425, _T("+"));
+							if (handbag[number].sp < 10)
+								_itoa(1, str, 10);
+							else
+								_itoa(2, str, 10);
+							ctot(tstr, str);
+							outtextxy(669, 425, tstr);
+						}
+
+						settextcolor(RGB(255, 55, 55));
+						settextstyle(&f);
+						outtextxy(862, 380, _T("+"));
+						if (handbag[number].pp < 15)
+							_itoa(1, str, 10);
+						else if (handbag[number].pp < 32)
+							_itoa(2, str, 10);
+						else if (handbag[number].pp >= 32)
+							_itoa(3, str, 10);
+						ctot(tstr, str);
+						outtextxy(884, 380, tstr);
+					}
+				}
+				//点击窗口外则退出当前窗口↓
+				if (mouse.lbutton && ((mouse.x < 75 || mouse.x > 915) || (mouse.y < 110 || mouse.y > 610))) {
+					make = 0;
+					number = 0;
+				}
+			}
+
+			//与铁匠对话↓
+			if (forge && !buy && !drink && !change) {
+				draw(440, 10, &paint2);
+				draw(11, 475, &talk, 0, 0, 0.8);
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 35;
+				settextstyle(&f);
+				outtextxy(25, 490, _T("塔尔汉德："));
+				f.lfHeight = 30;
+				settextstyle(&f);
+				outtextxy(85, 540, _T("武器不错啊，要试试强化它们吗？"));
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 555 && mouse.y < 595)) {
+					draw(695, 555, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton) {
+						make = 1;
+						Sleep(350);
+					}
+				}
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 595 && mouse.y < 635)) {
+					draw(695, 595, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton)
+						forge = 0;
+				}
+				outtextxy(700, 560, _T("1.何尝不可。"));
+				outtextxy(700, 600, _T("2.谢谢,不必了。"));
+			}
+
+			//兑换界面↓
+			if (change) {
+				exchange = 0;
+				draw(145, 145, &change_d, 0, 0, 0.85);
+				f.lfHeight = 80;
+				settextcolor(WHITE);
+				_tcscpy(f.lfFaceName, _T("方正姚体"));
+				settextstyle(&f);
+				outtextxy(320, 300, _T("-暂未开放-"));
+
+				if (mouse.lbutton && ((mouse.x < 145 || mouse.x > 835) || (mouse.y < 145 || mouse.y > 545)))
+					change = 0;
+
+			}
+
+			//与收藏家对话↓
+			if (exchange && !buy && !drink && !change) {
+				draw(420, 30, &paint3);
+				draw(11, 475, &talk, 0, 0, 0.8);
+				_tcscpy(f.lfFaceName, _T("方正舒体"));
+				f.lfHeight = 35;
+				settextstyle(&f);
+				outtextxy(25, 490, _T("吉尔伽美什："));
+				f.lfHeight = 30;
+				settextstyle(&f);
+				outtextxy(85, 540, _T("杂修，有为我找到新的藏品么？"));
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 555 && mouse.y < 595)) {
+					draw(695, 555, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton) {
+						change = 1;
+						Sleep(350);
+					}
+				}
+				if ((mouse.x > 695 && mouse.x < 900) && (mouse.y > 595 && mouse.y < 635)) {
+					draw(695, 595, &talk_d1, 0, 0, 0.5);
+					if (mouse.lbutton)
+						exchange = 0;
+				}
+				outtextxy(700, 560, _T("1.当然。"));
+				outtextxy(700, 600, _T("2.没有......"));
+			}
+
+
+
+		}
+		peekmessage(&mouse, EM_MOUSE);
+
+		//图鉴界面↓
+		if (judge == 3) {
+			putimage(0, 0, &bk4);
+			settextcolor(WHITE);
+			_tcscpy(f.lfFaceName, _T("方正舒体"));
+			settextstyle(&f);
+
+			//武器图鉴
+			if (book_s < 60) {
+				draw(20, 110, &book1, 0, 0, 0.7);
+
+				if (mouse.wheel > 0 && book_s > 0) {
+					book_s--;
+					Sleep(20);
+					mouse.wheel = 0;
+				}
+				else if (mouse.wheel < 0 && book_s < 31) {
+					book_s++;
+					Sleep(20);
+					mouse.wheel = 0;
+				}
+
+				for (int i = 0; i < 6; i++) {
+
+					if (mouse.lbutton && (mouse.x > 85 && mouse.x < 340) && (mouse.y > 130 + i * 80 && mouse.y < 200 + i * 80))
+						number = book_s + i;
+
+					if (number == book_s + i)
+						draw(82, 128 + i * 80, &book_d);
+
+					f.lfHeight = 620 / (strlen(handbook[book_s + i].name) + 8);
+					settextstyle(&f);
+
+					draw(82, 128 + i * 80, &book_d);
+					draw(98, 134 + i * 80, handbook[book_s + i].p);
+					ctot(tstr, handbook[book_s + i].name);
+					outtextxy(160, 130 + i * 80 + strlen(handbook[book_s + i].name), tstr);
+				}
+
+				if (number >= 0) {
+
+					draw(610, 160, &picture[number]);
+					f.lfHeight = 80;
+					settextcolor(RED);
+					_tcscpy(f.lfFaceName, _T("方正姚体"));
+					settextstyle(&f);
+					ctot(tstr, handbook[number].name);//打印武器名
+					outtextxy(580 - 20 * strlen(handbook[number].name), 300, tstr);
+
+					f.lfHeight = 50;//打印武器各属性
+					settextstyle(&f);
+					outtextxy(415, 410, _T("攻击力:"));
+					_itoa(handbook[number].atk, str, 10);
+					ctot(tstr, str);
+					outtextxy(575, 413, tstr);
+
+					outtextxy(670, 410, _T("所需体力:"));
+					_itoa(handbook[number].pp, str, 10);
+					ctot(tstr, str);
+					outtextxy(870, 413, tstr);
+
+					outtextxy(415, 490, _T("耐久值:"));
+					_itoa(handbook[number].sp, str, 10);
+					ctot(tstr, str);
+					outtextxy(575, 493, tstr);
+
+					outtextxy(670, 490, _T("冷却时间:"));
+					sprintf(str, "%.1lf", handbook[number].CD);
+					ctot(tstr, str);
+					outtextxy(870, 493, tstr);
+
+					f.lfHeight = 45;//打印武器描述
+					settextcolor(RGB(255, 50, 50));
+					settextstyle(&f);
+					outtextxy(370, 560, handbook[number].story);
+				}
+
+
+
+
+
+
+
+
+				if (mouse.lbutton && (mouse.x > 35 && mouse.x < 60) && (mouse.y > 370 && mouse.y < 610)) {
+					number = 0;
+					book_s = 60;
+					Sleep(100);
+				}
+
+			}
+
+			//敌人图鉴
+			else if (book_s >= 60) {
+				draw(20, 110, &book2, 0, 0, 0.7);
+
+				if (mouse.wheel > 0 && book_s > 60) {
+					book_s--;
+					Sleep(20);
+					mouse.wheel = 0;
+				}
+				else if (mouse.wheel < 0 && book_s < 84) {
+					book_s++;
+					Sleep(20);
+					mouse.wheel = 0;
+				}
+
+				for (int i = 0; i < 6; i++) {
+
+					if (mouse.lbutton && (mouse.x > 85 && mouse.x < 340) && (mouse.y > 130 + i * 80 && mouse.y < 200 + i * 80))
+						number = book_s + i - 60;
+
+					if (number == book_s + i - 60)
+						draw(82, 128 + i * 80, &book_d);
+
+					if (rival[book_s + i - 60].boss) {
+						f.lfHeight = 80;
+						settextcolor(RED);
+						settextstyle(&f);
+						outtextxy(115, 118 + i * 80, _T("BOSS"));
+					}
+
+					f.lfHeight = 500 / (lstrlen(rival[book_s + i - 60].name) + 8);
+					settextcolor(WHITE);
+					settextstyle(&f);
+
+					draw(82, 128 + i * 80, &book_d);
+					if (rival[book_s + i - 60].enemy.pic1 != rival[book_s + i - 60].enemy.pic2)
+						draw(98, 134 + i * 80, rival[book_s + i - 60].enemy.pic1);
+					outtextxy(160, 135 + i * 80 + lstrlen(rival[book_s + i - 60].name), rival[book_s + i - 60].name);
+				}
+
+				if (number >= 0) {
+					if (rival[number].boss)
+						draw(480, 60, rival[number].boss, 0, 0, 0.35);
+
+
+					f.lfHeight = 80;
+					settextcolor(RED);
+					_tcscpy(f.lfFaceName, _T("方正姚体"));
+					settextstyle(&f);//打印敌人名
+					outtextxy(500 - 20 * lstrlen(rival[number].name), 125, rival[number].name);
+
+					draw(550 + rival[number].x, 90 + rival[number].y / 3, rival[number].book);
+
+					f.lfHeight = 50;//打印敌人属性
+					settextstyle(&f);
+					outtextxy(415, 390, _T("生命值:"));
+					_itoa(rival[number].enemy.mhp, str, 10);
+					ctot(tstr, str);
+					outtextxy(575, 393, tstr);
+
+					outtextxy(670, 390, _T("生命回复率:"));
+					_itoa(rival[number].enemy.hpreturn, str, 10);
+					ctot(tstr, str);
+					outtextxy(910, 393, tstr);
+
+					outtextxy(410, 490, _T("武器:"));
+					draw(530, 480, &diamond, 0, 0, 0.9);
+					draw(630, 480, &diamond, 0, 0, 0.9);
+					draw(542, 492, rival[number].enemy.w1.p);
+					draw(642, 492, rival[number].enemy.w2.p);
+
+					if ((mouse.x > 530 && mouse.x < 610) && (mouse.y > 480 && mouse.y < 560)) {//装备属性窗口
+						draw(611, 460, &eq_mes, 0, 0, 0.9);
+						draw(530, 480, &diamond, 0, 0, 0.4);
+						f.lfHeight = 25;
+						settextcolor(WHITE);
+						_tcscpy(f.lfFaceName, _T("华文中宋"));
+						settextstyle(&f);
+						ctot(tstr, rival[number].enemy.w1.name);//打印武器名
+						outtextxy(631, 470, tstr);
+
+						f.lfHeight = 19;//打印武器各属性
+						settextstyle(&f);
+						outtextxy(626, 510, _T("攻击力:"));
+						_itoa(rival[number].enemy.w1.atk, str, 10);
+						ctot(tstr, str);
+						outtextxy(686, 511, tstr);
+
+						outtextxy(721, 510, _T("所需体力:"));
+						_itoa(rival[number].enemy.w1.pp, str, 10);
+						ctot(tstr, str);
+						outtextxy(801, 511, tstr);
+
+						outtextxy(626, 540, _T("耐久值:"));
+						_itoa(rival[number].enemy.w1.sp, str, 10);
+						ctot(tstr, str);
+						outtextxy(686, 541, tstr);
+
+						outtextxy(721, 540, _T("冷却时间:"));
+						sprintf(str, "%.1lf", rival[number].enemy.w1.CD);
+						ctot(tstr, str);
+						outtextxy(801, 541, tstr);
+
+						f.lfHeight = 18;//打印武器描述
+						settextcolor(RGB(218, 218, 218));
+						settextstyle(&f);
+						outtextxy(608, 580, rival[number].enemy.w1.story);
+
+						f.lfHeight = 25;//打印出售金币
+						settextcolor(YELLOW);
+						settextstyle(&f);
+						outtextxy(788, 472, _T("$"));
+						_itoa(rival[number].enemy.w1.money, str, 10);
+						ctot(tstr, str);
+						outtextxy(803, 472, tstr);
+					}
+
+					if ((mouse.x > 630 && mouse.x < 710) && (mouse.y > 480 && mouse.y < 560)) {//装备属性窗口
+						draw(711, 460, &eq_mes, 0, 0, 0.9);
+						draw(630, 480, &diamond, 0, 0, 0.4);
+						f.lfHeight = 25;
+						settextcolor(WHITE);
+						_tcscpy(f.lfFaceName, _T("华文中宋"));
+						settextstyle(&f);
+						ctot(tstr, rival[number].enemy.w2.name);//打印武器名
+						outtextxy(731, 470, tstr);
+
+						f.lfHeight = 19;//打印武器各属性
+						settextstyle(&f);
+						outtextxy(726, 510, _T("攻击力:"));
+						_itoa(rival[number].enemy.w2.atk, str, 10);
+						ctot(tstr, str);
+						outtextxy(786, 511, tstr);
+
+						outtextxy(821, 510, _T("所需体力:"));
+						_itoa(rival[number].enemy.w2.pp, str, 10);
+						ctot(tstr, str);
+						outtextxy(901, 511, tstr);
+
+						outtextxy(726, 540, _T("耐久值:"));
+						_itoa(rival[number].enemy.w2.sp, str, 10);
+						ctot(tstr, str);
+						outtextxy(786, 541, tstr);
+
+						outtextxy(821, 540, _T("冷却时间:"));
+						sprintf(str, "%.1lf", rival[number].enemy.w2.CD);
+						ctot(tstr, str);
+						outtextxy(901, 541, tstr);
+
+						f.lfHeight = 18;//打印武器描述
+						settextcolor(RGB(218, 218, 218));
+						settextstyle(&f);
+						outtextxy(708, 580, rival[number].enemy.w2.story);
+
+						f.lfHeight = 25;//打印出售金币
+						settextcolor(YELLOW);
+						settextstyle(&f);
+						outtextxy(888, 472, _T("$"));
+						_itoa(rival[number].enemy.w2.money, str, 10);
+						ctot(tstr, str);
+						outtextxy(903, 472, tstr);
+					}
+
+				}
+
+				if (mouse.lbutton && (mouse.x > 35 && mouse.x < 60) && (mouse.y > 115 && mouse.y < 350)) {
+					number = 0;
+					book_s = 0;
+					Sleep(100);
+				}
+			}
+		}
+
+		draw(885, 40, &pic_money);//打印金币图标及金币数目↓
+		f.lfHeight = 22;
+		settextcolor(WHITE);
+		_tcscpy(f.lfFaceName, _T("华文琥珀"));
+		settextstyle(&f);
+		_itoa(money, str, 10);
+		ctot(tstr, str);
+		outtextxy(914, 47, tstr);
+
+		peekmessage(&mouse, EM_MOUSE);
+
+		draw(20, 30, &back);//返回菜单按钮↓
+		if (mouse.lbutton && (mouse.x > 20 && mouse.x < 110) && (mouse.y > 30 && mouse.y < 80)) {
+			mciSendString(L"close BGM", 0, 0, 0);
+			PlaySound(_T("../音效/按钮.wav"), NULL, SND_ASYNC);
+			return;
+		}
+		EndBatchDraw();
+	}
+}
+
+//存档函数↓
+void save(int file_num, int act, weapon w1, weapon w2, weapon handbag[], int money, int level_num, int points[]) {
+
+	FILE* file = NULL;
+
+	if (file_num == 1)//打开存档文件并清空
+		file = fopen("../存档/存档1.txt", "w");
+	if (file_num == 2)
+		file = fopen("../存档/存档2.txt", "w");
+	if (file_num == 3)
+		file = fopen("../存档/存档3.txt", "w");
+
+	if (file == NULL)
+		exit(0);
+
+	fprintf(file, "%d\n", act);//储存当前选择角色
+	fprintf(file, "%d %d\n", w1.num, w2.num);//储存当前装备武器编号
+	fprintf(file, "%d %d\n", w1.intensify, w2.intensify);//储存当前装备武器强化等级
+
+	for (int i = 0; i < 20; i++) //储存背包中武器的编号
+		fprintf(file, "%d ", handbag[i].num);
+
+	fprintf(file, "\n%d\n", money);//储存金币数
+
+	for (int i = 0; i < 20; i++) //储存背包中武器强化等级
+		fprintf(file, "%d ", handbag[i].intensify);
+
+	fprintf(file, "\n%d\n", level_num);//储存已解锁关卡数
+	fprintf(file, "%d %d %d %d\n", points[0], points[1], points[2], points[3]);//储存加点数据
+	fclose(file);//关闭文件夹
+
+}
+
+//武器强化函数↓
+void strengthen(weapon& it) {
+	char str[10];
+	if (it.intensify > 0) {//添加强化等级后缀
+		strcat(it.name, "+");
+		_itoa(it.intensify, str, 10);
+		strcat(it.name, str);
+
+		if (it.atk < 12)//武器攻击力
+			it.atk += it.intensify;
+		else if (it.atk < 26)
+			it.atk += 2 * it.intensify;
+		else if (it.atk >= 26)
+			it.atk += 3 * it.intensify;
+
+		if (it.intensify >= 2) {//武器耐久
+			if (it.sp < 10)
+				it.sp++;
+			else
+				it.sp += 2;
+		}
+		if (it.pp < 15)//武器消耗体力值
+			it.pp += it.intensify;
+		else if (it.pp < 32)
+			it.pp += 2 * it.intensify;
+		else if (it.pp >= 32)
+			it.pp += 3 * it.intensify;
+
+		it.money += it.money * it.intensify;//武器回收价值
+	}
+}
+
